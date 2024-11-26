@@ -126,10 +126,13 @@ class MusicPlayer {
         }
 
         void next_track(const std::vector<Track>& track_data, int& current_index) {
-            if (track_data.empty()) std::cout <<"Retinngnng"; return;
+            if (track_data.empty()) return;
 
             // Circular next
-            std::cout << "Retinngnngddddddddddddddddddddddddddddd";
+            //write data to file:
+
+            
+
             current_index = (current_index + 1) % track_data.size();
             play(track_data[current_index].url);
         }
