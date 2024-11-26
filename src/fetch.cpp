@@ -6,22 +6,6 @@
 
 class Fetch {
     public:
-        // Fetch(const Fetch &) = default;
-        // Fetch(Fetch &&) = default;
-        // Fetch &operator=(const Fetch &) = default;
-        // Fetch &operator=(Fetch &&) = default;
-        // Structure to hold track info
-        // struct Track {
-        //     std::string name;
-        //     std::string artist;
-        //     std::string url;
-
-        //     // Convert to display string for FTXUI menu
-        //     std::string to_string() const {
-        //         return name + " - " + artist;
-        //     }
-        // };
-
         // Callback for CURL
         static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
             userp->append((char*)contents, size * nmemb);
