@@ -82,11 +82,7 @@ std::map<std::string, std::vector<std::string>> ascii_art = {
          R"(   ( ______ )  )",
      }}};
 
-// Function to get ASCII art based on track genre
 std::vector<std::string> get_track_ascii_art(const Track &track) {
-  // Implement genre detection logic or use default
-  // std::string genre = track.genre.empty() ? "default" :
-  //     (ascii_art.count(track.genre) ? track.genre : "default");
   std::string genre = "default";
   return ascii_art[genre];
 }
@@ -105,23 +101,6 @@ auto fetch_main(const std::string &query) {
   }
   return track_strings;
 }
-
-//   void setupMusicPlayback(mpv_handle* player) {
-//     MusicPlayQueue playQueue(player);
-
-//     // Add tracks from your track_data_forestfm
-//     for (const auto& track : track_data_forestfm) {
-//         playQueue.addToQueue(track.url);
-//     }
-
-//     // Start playing
-//     playQueue.start();
-
-//     // Main event loop
-//     while (true) {
-//         playQueue.handleEvents();
-//     }
-//   }
 
 void switch_playlist_source(const std::vector<Track> &new_tracks) {
   // Stop current playback
@@ -275,52 +254,6 @@ int main() {
     });
     fetch_thread.detach(); // Allow thread to run independently
   });
-  // auto play_forestfm = Button(&button_text_forestfm, [&] {
-  //     // Fetch tracks if empty
-  //         // Show loading indicator
-  //     current_track = "Fetching tracks...";
-  //     screen.PostEvent(Event::Custom);
-  //     try{
-  //         track_data_forestfm = justmusic.getMP3URL();
-  //         current_track = "Tracks fetched successfully";
-  //     }catch(const std::exception& e) {
-  //         current_track = "Error fetching tracks: " + std::string(e.what());
-  //         screen.PostEvent(Event::Custom);
-  //         return;
-  //     }
-
-  //     // Check if tracks are available
-  //     if (track_data_forestfm.empty()) {
-  //         current_track = "No tracks found";
-  //         screen.PostEvent(Event::Custom);
-  //         return;
-  //     }
-  //     current_track = "It is not empty";
-
-  //     // If currently playing, pause
-  //     if (player->is_playing_state()) {
-  //         current_track = "Player is playing";
-  //         player->pause();
-  //         return;
-  //     }
-
-  //     current_track = "PLayer paused";
-  //     // Create playlist of URLs
-  //     std::vector<std::string> track_urls;
-  //     for (const auto& track : track_data_forestfm) {
-  //         track_urls.push_back(track.url);
-  //     }
-  //     current_track = "Playlist created successfully";
-
-  //     // Create playlist and start playing
-  //     player->create_playlist(track_urls);
-
-  //     // Update current track info (optional)
-  //     if (!track_data_forestfm.empty()) {
-  //         current_track = track_data_forestfm[0].name;
-  //         current_artist = track_data_forestfm[0].artist;
-  //     }
-  // });
 
   std::vector<std::string> playlist_items = {"Favorites", "Recently Played",
                                              "Custom Playlist 122"};
@@ -355,42 +288,12 @@ int main() {
       if (total_duration > 0) {
         double seek_position = (progress_percentage / 100.0) * total_duration;
         seek_position = std::min(seek_position, total_duration);
-        // seek_position = std::min(total_duration,
-        // std::max(0.0,seek_position)); player->seek(seek_position);
       }
       return true;
     }
     return false;
   });
 
-  // auto button_prev =
-  //     Button("<-", [&] { player->previous_track(track_data, selected); });
-
-  // auto button_next =
-  //     Button("->", [&] { player->next_track(track_data, selected); });
-
-  //*** Modify the button_prev and button_next to handle both track_data and
-  // track_data_forestfm
-  // auto button_prev = Button("<-", [&] {
-  //     // Check which playlist is currently active
-  //     if (!track_data_forestfm.empty()) {
-  //         // Use ForestFM playlist
-  //         if (current_track_index > 0) {
-  //             current_track_index--;
-  //         } else {
-  //             current_track_index = track_data_forestfm.size() - 1;
-  //         }
-  //         player->play(track_data_forestfm[current_track_index].url);
-  //         // Update current track information
-  //         current_track = track_data_forestfm[current_track_index].name;
-  //         current_artist = track_data_forestfm[current_track_index].artist;
-  //         screen.PostEvent(Event::Custom);
-  //     } else {
-  //         // Fallback to original tracks
-  //         player->previous_track(track_data, selected);
-  //     }
-  // });
-  //
   auto button_prev = Button("<-", [&] {
     if (current_source == PlaylistSource::ForestFM &&
         !track_data_forestfm.empty()) {
@@ -414,22 +317,6 @@ int main() {
     screen.PostEvent(Event::Custom);
   });
 
-  // auto button_next = Button("->", [&] {
-  //     // Check which playlist is currently active
-  //     if (!track_data_forestfm.empty()) {
-  //         // Use ForestFM playlist
-  //         current_track_index = (current_track_index + 1) %
-  //         track_data_forestfm.size();
-  //         player->play(track_data_forestfm[current_track_index].url);
-  //         // Update current track information
-  //         current_track = track_data_forestfm[current_track_index].name;
-  //         current_artist = track_data_forestfm[current_track_index].artist;
-  //         screen.PostEvent(Event::Custom);
-  //     } else {
-  //         // Fallback to original tracks
-  //         player->next_track(track_data, selected);
-  //     }
-  // });
 
   auto button_next = Button("->", [&] {
     if (current_source == PlaylistSource::ForestFM &&
@@ -453,8 +340,6 @@ int main() {
     screen.PostEvent(Event::Custom);
   });
 
-  // player->set_end_of_track_callback(
-  //     [&] { player->next_track(track_data, selected); });
   player->set_end_of_track_callback([&] {
     // Automatically update track info when a track ends
     if (!track_data_forestfm.empty()) {
@@ -500,25 +385,8 @@ int main() {
 
               
           }),
-      // input_search,
-      // menu,
-      // progress_slider,
-      // button_prev,
-      // play_button,
-      // button_next,
   });
 
-  // *** Search
-  // component = component | CatchEvent([&](Event event) {
-  //               if (event == Event::Return) { // Enter key
-  //                 bool search_triggered = true;
-  //                 // search action
-  //                 tracks = fetch_main(search_query);
-  //                 text("Search triggered for: " + search_query);
-  //                 return true; // Event handled
-  //               }
-  //               return false; // Pass unhandled events
-  //             });
 
   component =
       component | CatchEvent([&](Event event) {
@@ -619,9 +487,6 @@ int main() {
                       for (const auto &line : art) {
                         art_elements.push_back(text(line) | color(Color::Blue));
                       }
-
-                      // Display the ASCII art with a border and center
-                      // alignment
                       return vbox(std::move(art_elements)) | border | center;
                     }(),
                 }) | center,
@@ -629,9 +494,9 @@ int main() {
                     text("♪ ") | color(Color::Blue),
                     volume_slider->Render(),
                 }) | border,
-                vbox({
-                    text("Navigation:") | bold,
-                }) | border,
+                // vbox({
+                //     text("Navigation:") | bold,
+                // }) | border,
             }) | size(WIDTH, EQUAL, 30) |
                 border,
             vbox({
@@ -661,16 +526,15 @@ int main() {
             }) | center,
         }),
         separator(),
-        hbox({text(" Arch Music Player ") | bgcolor(Color::Blue) |
+        hbox({text(" λ arch music ") | bgcolor(Color::Blue) |
                   color(Color::White),
               filler(),
               hbox({
-                  text("Space=Play/Pause ") | dim,
-                  text("↑/↓=Navigate ") | dim,
-                  text("+/-=Volume ") | dim,
-                  text("S=Shuffle ") | dim,
-                  text("R=Repeat ") | dim,
-                  text("L=Lyrics ") | dim,
+                text("⌨️ ") | dim,
+                text("Space:Play ") | dim,
+                text("↑/↓:Navigate ") | dim,
+                text("+/-:Volume ") | dim,
+                text("S:Shuffle ") | dim,
               }) | center,
               text(fmt::format(" {} Tracks ",
                                current_source == PlaylistSource::Search
