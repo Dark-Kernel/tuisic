@@ -3,6 +3,7 @@
 #include <vector>
 #include <regex>
 #include "Track.h"
+#include <mpv/client.h>
 
 class Fetch {
     public:
