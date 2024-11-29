@@ -10,6 +10,7 @@
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/screen_interactive.hpp> // for ScreenInteractive
+#include <ftxui/screen/color.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -150,8 +151,44 @@ int main() {
   int volume = 100;
 
   // Components
+  // InputOption search_style = InputOption::Spacious();
   Component input_search = Input(&search_query, "Search for music...");
+  input_search = Input(&search_query, "Search for music...") | CatchEvent([&tracks, &search_query](Event event) {
+    if (event == Event::Return) {
+      tracks = fetch_main(search_query);
+      return true;
+    } 
+    return false;
+  });
+  // search_style.transform =[](InputState state){
+  //   state.element |= borderEmpty;
+  //   if (state.is_placeholder) {
+  //     state.element |= dim;
+  //   }
+  //   if(state.focused){
+  //       state.element |= bgcolor(Color::Default);
+  //   }
+  //   return state.element;
+  // };
   auto menu = Menu(&tracks, &selected);
+  menu = Menu(&tracks, &selected) | CatchEvent([&button_text](Event event){
+          if (event == Event::Return) {
+          std::cerr << "Selected: " << selected << std::endl;
+            if (selected >= 0 && selected < track_data.size()) {
+              current_source = PlaylistSource::Search;
+              if (!track_data_forestfm.empty()) {
+                player->stop();
+              }
+              player->play(track_data[selected].url);
+              current_track = track_data[selected].name;
+              current_artist = track_data[selected].artist;
+              button_text = "Pause";
+              screen.PostEvent(Event::Custom);
+            }
+            return true;
+          }
+          return false;
+    });
   Component volume_slider = Slider("", &volume, 0, 100, 1);
 
   auto play_button = Button(&button_text, [&] {
@@ -185,20 +222,20 @@ int main() {
       }
     }
     screen.PostEvent(Event::Custom);
-  });
+  }, ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default, Color::White));
 
   Justmusic justmusic;
   std::string button_text_forestfm = "▶";
   auto play_forestfm = Button(&button_text_forestfm, [&] {
     reset_player_state();
     current_source = PlaylistSource::ForestFM;
-    if (player->is_playing_state()) {
-        player->pause();
-        button_text_forestfm = "▶";
-    } else {
-        player->play(track_data_forestfm[current_track_index].url);
-        button_text_forestfm = "❚❚";
-    }
+    // if (player->is_playing_state()) {
+    //     player->pause();
+    //     button_text_forestfm = "▶";
+    // } else {
+    //     player->play(track_data_forestfm[current_track_index].url);
+    //     button_text_forestfm = "❚❚";
+    // }
 
     // Use a flag to prevent multiple simultaneous requests
     static std::atomic<bool> is_fetching{false};
@@ -237,6 +274,7 @@ int main() {
           // Create playlist and start playing
           player->create_playlist(track_urls);
           current_track_index = 0;
+          button_text_forestfm = "❚❚";
 
           // Update current track info
           current_track = track_data_forestfm[0].name;
@@ -253,8 +291,13 @@ int main() {
       is_fetching = false;
     });
     fetch_thread.detach(); // Allow thread to run independently
-  });
+  },ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default, Color::White));
 
+
+
+  auto play_classic = Button(&button_text_forestfm, [&] {
+            reset_player_state();
+          });
   std::vector<std::string> playlist_items = {"Favorites", "Recently Played",
                                              "Custom Playlist 122"};
   int selected_playlist = 0;
@@ -360,6 +403,8 @@ int main() {
     player->next_track(track_data, selected);
   });
 
+
+
   // Component tree
   auto component = Container::Vertical({
           // Top section
@@ -388,64 +433,150 @@ int main() {
   });
 
 
-  component =
-      component | CatchEvent([&](Event event) {
-        // Handle Enter key for playing selected track
-        if (event == Event::Return) {
-          if (!search_query.empty()) {
-            // If search query is not empty, perform search
-            tracks = fetch_main(search_query);
-          } else if (!track_data.empty() && selected >= 0 &&
-                     selected < track_data.size()) {
-            // If a track is selected, play it
-            current_source = PlaylistSource::Search;
-            player->play(track_data[selected].url);
-            current_track = track_data[selected].name;
-            current_artist = track_data[selected].artist;
-            button_text = "Pause";
-            screen.PostEvent(Event::Custom);
-          }
-          return true;
-        }
+  component = component | CatchEvent([&](Event event) {
+    // Check if search input is focused
+    bool is_search_focused = input_search->Focused();
 
-        // Space for play/pause
-        if (event == Event::Character(' ')) {
-          if (current_source == PlaylistSource::Search && !track_data.empty()) {
-            if (player->is_playing_state()) {
-              player->pause();
-              button_text = "Play";
-            } else {
-              player->play(track_data[selected].url);
-              button_text = "Pause";
-            }
-          } else if (current_source == PlaylistSource::ForestFM &&
-                     !track_data_forestfm.empty()) {
-            if (player->is_playing_state()) {
-              player->pause();
-              button_text = "Play";
-            } else {
-              player->play(track_data_forestfm[current_track_index].url);
-              button_text = "Pause";
-            }
-          }
-          screen.PostEvent(Event::Custom);
-          return true;
-        }
-
+    // Handle keyboard events with consideration of input focus
+    if (is_search_focused) {
+        // When search is focused, allow normal input behavior
         if (event == Event::Character('q')) {
-          screen.Exit();
-          // screen.PostEvent(Event::);
-          return true;
+            // Do nothing when 'q' is pressed in search input
+            return false;
         }
-        // Escape to unfocus search box
-        if (event == Event::Escape) {
-          // input_search->(false);
-          screen.PostEvent(Event::Custom);
-          return true;
+        if (event == Event::Character(' ')) {
+            // Allow space to be entered in search input
+            return false;
         }
 
-        return false;
-      });
+        if(event == Event::Escape){
+            menu->TakeFocus();
+            return true;
+        }
+    } else {
+        // Handle global keyboard shortcuts when search is not focused
+        if (event == Event::Character(' ')) {
+            // Space for play/pause
+            if (current_source == PlaylistSource::Search && !track_data.empty()) {
+                if (player->is_playing_state()) {
+                    player->pause();
+                    button_text = "Play";
+                } else {
+                    player->play(track_data[selected].url);
+                    current_track = track_data[selected].name;
+                    current_artist = track_data[selected].artist;
+                    button_text = "Pause";
+                }
+            } else if (current_source == PlaylistSource::ForestFM &&
+                       !track_data_forestfm.empty()) {
+                if (player->is_playing_state()) {
+                    player->pause();
+                    button_text = "Play";
+                } else {
+                    player->play(track_data_forestfm[current_track_index].url);
+                    current_track = track_data_forestfm[current_track_index].name;
+                    current_artist = track_data_forestfm[current_track_index].artist;
+                    button_text = "Pause";
+                }
+            }
+            screen.PostEvent(Event::Custom);
+            return true;
+        }
+    }
+
+    // Handle Enter key for playing selected track
+    // if (event == Event::Return) {
+    //     if (!search_query.empty()) {
+    //         // If search query is not empty, perform search
+    //         tracks = fetch_main(search_query);
+    //     } else if (!track_data.empty() && selected >= 0 &&
+    //                selected < track_data.size()) {
+    //         // If a track is selected, play it
+    //         current_track = "Hmmmmmmmmm;";
+    //         current_source = PlaylistSource::Search;
+
+    //         current_track_index = selected;  // Explicitly set current track index
+    //         player->play(track_data[selected].url);
+    //         current_track = track_data[selected].name;
+    //         current_artist = track_data[selected].artist;
+    //         button_text = "Pause";
+    //         screen.PostEvent(Event::Custom);
+    //     }
+    //     return true;
+    // }
+
+    // Global quit shortcut
+    if (event == Event::Character('q')) {
+        screen.Exit();
+        return true;
+    }
+
+    // Escape to unfocus search box
+    if (event == Event::Escape) {
+        screen.PostEvent(Event::Custom);
+        return true;
+    }
+
+    return false;
+});
+  // component =
+  //     component | CatchEvent([&](Event event) {
+  //       // Handle Enter key for playing selected track
+  //       if (event == Event::Return) {
+  //         if (!search_query.empty()) {
+  //           // If search query is not empty, perform search
+  //           tracks = fetch_main(search_query);
+  //         } else if (!track_data.empty() && selected >= 0 &&
+  //                    selected < track_data.size()) {
+  //           // If a track is selected, play it
+  //           current_source = PlaylistSource::Search;
+  //           player->play(track_data[selected].url);
+  //           current_track = track_data[selected].name;
+  //           current_artist = track_data[selected].artist;
+  //           button_text = "Pause";
+  //           screen.PostEvent(Event::Custom);
+  //         }
+  //         return true;
+  //       }
+
+  //       // Space for play/pause
+  //       if (event == Event::Character(' ')) {
+  //         if (current_source == PlaylistSource::Search && !track_data.empty()) {
+  //           if (player->is_playing_state()) {
+  //             player->pause();
+  //             button_text = "Play";
+  //           } else {
+  //             player->play(track_data[selected].url);
+  //             button_text = "Pause";
+  //           }
+  //         } else if (current_source == PlaylistSource::ForestFM &&
+  //                    !track_data_forestfm.empty()) {
+  //           if (player->is_playing_state()) {
+  //             player->pause();
+  //             button_text = "Play";
+  //           } else {
+  //             player->play(track_data_forestfm[current_track_index].url);
+  //             button_text = "Pause";
+  //           }
+  //         }
+  //         screen.PostEvent(Event::Custom);
+  //         return true;
+  //       }
+
+  //       if (event == Event::Character('q')) {
+  //         screen.Exit();
+  //         // screen.PostEvent(Event::);
+  //         return true;
+  //       }
+  //       // Escape to unfocus search box
+  //       if (event == Event::Escape) {
+  //         // input_search->(false);
+  //         screen.PostEvent(Event::Custom);
+  //         return true;
+  //       }
+
+  //       return false;
+  //     });
 
   // Layout
   auto renderer = Renderer(component, [&] {
@@ -465,12 +596,13 @@ int main() {
         separator(),
         hbox({
             vbox({
-                text("Library") | bold,
+                // text("Library") | bold,
                 vbox({
                     text("Playlists: ") | bold,
                     separator(),
                     playlist_menu->Render(),
-                }) | border,
+                // }) | border,
+                }),
                 separator(),
                 hbox({
                     play_forestfm->Render() | size(WIDTH, EQUAL, 5) | bold | center,
@@ -490,10 +622,11 @@ int main() {
                       return vbox(std::move(art_elements)) | border | center;
                     }(),
                 }) | center,
+                separator(),
                 hbox({
                     text("♪ ") | color(Color::Blue),
                     volume_slider->Render(),
-                }) | border,
+                }),
                 // vbox({
                 //     text("Navigation:") | bold,
                 // }) | border,
