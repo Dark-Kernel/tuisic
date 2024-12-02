@@ -4,6 +4,8 @@ TUI Online Music Streaming application.
 
 It let's you search and play online songs from cli hassle free.
 
+![some](./example/1733153980.jpg)
+
 ## Sources
 It fetches songs from some platforms:
 - SoundCloud
