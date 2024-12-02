@@ -22,6 +22,8 @@ std::vector<Track> track_data_soundcloud;
 std::vector<Track> track_data_forestfm;
 std::string current_track = "🎵 Music Streaming App 🎵";
 std::string current_artist = "Welcome back, User!";
+std::vector<Track> recently_played;
+std::vector<std::string> recently_played_strings;
 int current_track_index = 0; // Track the current track index
 
 Fetch fetch;
@@ -103,6 +105,13 @@ auto fetch_main(const std::string &query) {
   return track_strings;
 }
 
+auto fetch_recent(){
+    for(const auto &recent : recently_played){
+        recently_played_strings.push_back(recent.to_string());
+    }
+    return recently_played_strings;
+}
+
 void switch_playlist_source(const std::vector<Track> &new_tracks) {
   // Stop current playback
   player->stop();
@@ -180,6 +189,7 @@ int main() {
                 player->stop();
               }
               player->play(track_data[selected].url);
+              recently_played.push_back(track_data[selected]);
               current_track = track_data[selected].name;
               current_artist = track_data[selected].artist;
               button_text = "Pause";
@@ -295,13 +305,36 @@ int main() {
 
 
 
-  auto play_classic = Button(&button_text_forestfm, [&] {
+  std::string button_text_classic = "▶";
+  auto play_classic = Button(&button_text_classic, [&] {
             reset_player_state();
-          });
+          },ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default, Color::White));
+
   std::vector<std::string> playlist_items = {"Favorites", "Recently Played",
                                              "Custom Playlist 122"};
   int selected_playlist = 0;
-  auto playlist_menu = Menu(&playlist_items, &selected_playlist);
+  auto playlist_menu = Menu(&playlist_items, &selected_playlist) | CatchEvent([&](Event event) {
+    if (event == Event::Return) {
+      if (selected_playlist == 0) {
+        // current_source = PlaylistSource::Favorites;
+        current_track = "Favorites";
+      } else if (selected_playlist == 1) {
+        // current_source = PlaylistSource::Recent;
+        current_track = "Recently Played";
+        tracks.clear();
+        tracks = fetch_recent();
+      } else if (selected_playlist == 2) {
+        // current_source = PlaylistSource::Custom;
+        current_track = "Custom Playlist 122";
+      }
+      screen.PostEvent(Event::Custom);
+    }
+    return false;
+      
+  });
+
+
+
 
   // player callbacks
   player->set_state_callback([&] {
@@ -412,6 +445,7 @@ int main() {
                   Container::Vertical({
                   playlist_menu,
                   play_forestfm,
+                  play_classic,
                   volume_slider,
                           }),
 
@@ -422,7 +456,7 @@ int main() {
                           }),
 
                   Container::Vertical({
-                          progress_slider,
+                          // progress_slider,
                           button_prev,
                           play_button,
                           button_next,
@@ -594,6 +628,7 @@ int main() {
                   border}) |
             bold,
         separator(),
+        filler(),
         hbox({
             vbox({
                 // text("Library") | bold,
@@ -607,6 +642,11 @@ int main() {
                 hbox({
                     play_forestfm->Render() | size(WIDTH, EQUAL, 5) | bold | center,
                     text("Forest FM") | bold | center,
+                }) | center,
+                separator(),
+                hbox({
+                    play_classic->Render() | size(WIDTH, EQUAL, 5) | bold | center,
+                    text("ClassicFM") | bold | center,
                 }) | center,
                 separator(),
                 hbox({
@@ -646,9 +686,9 @@ int main() {
        filler(), 
         vbox({
             hbox({
-                text(format_time(current_position)),
+                // text(format_time(current_position)),
                 progress_slider->Render() | flex,
-                text(format_time(total_duration)),
+                // text(format_time(total_duration)),
             }),
             hbox({
                 filler(),
