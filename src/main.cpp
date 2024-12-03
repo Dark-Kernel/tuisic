@@ -16,8 +16,11 @@
 #include <vector>
 
 std::vector<std::string> track_strings;
+std::vector<std::string> temp_track_strings;
+
 std::vector<std::string> track_strings_forestfm;
 std::vector<Track> track_data;
+std::vector<Track> temp_track_data;
 std::vector<Track> track_data_soundcloud;
 std::vector<Track> track_data_forestfm;
 std::string current_track = "🎵 Music Streaming App 🎵";
@@ -106,6 +109,11 @@ auto fetch_main(const std::string &query) {
 }
 
 auto fetch_recent(){
+    temp_track_data = track_data;
+    track_data.clear();
+    for(const auto &track : recently_played){
+        track_data.push_back(track);
+    }
     for(const auto &recent : recently_played){
         recently_played_strings.push_back(recent.to_string());
     }
@@ -188,6 +196,7 @@ int main() {
               if (!track_data_forestfm.empty()) {
                 player->stop();
               }
+              player->stop();
               player->play(track_data[selected].url);
               recently_played.push_back(track_data[selected]);
               current_track = track_data[selected].name;
@@ -197,6 +206,24 @@ int main() {
             }
             return true;
           }
+            // press l on selected to copy url
+            if (event == Event::AltL) {
+              if (selected >= 0 && selected < track_data.size()) {
+                std::string url = track_data[selected].url;
+                system(("echo \"" + url + "\" | xclip -selection clipboard").c_str());
+                system(("notify-send \"Copied URL: " + url + "\"").c_str());
+                std::cout << "Copied URL: " << url << std::endl;
+                return true;
+              }
+            }
+            if (event == Event::Character('L')) {
+              // if (selected >= 0 && selected < track_data.size()) {
+                  
+              // }
+                std::cerr << "pressed L" << std::endl;
+                    player->toggle_subtitles();
+            }
+
           return false;
     });
   Component volume_slider = Slider("", &volume, 0, 100, 1);
@@ -318,9 +345,14 @@ int main() {
       if (selected_playlist == 0) {
         // current_source = PlaylistSource::Favorites;
         current_track = "Favorites";
+        tracks.clear();
+        track_data.clear();
+        track_data = temp_track_data;
+        tracks = temp_track_strings;
       } else if (selected_playlist == 1) {
         // current_source = PlaylistSource::Recent;
         current_track = "Recently Played";
+        temp_track_strings = tracks;
         tracks.clear();
         tracks = fetch_recent();
       } else if (selected_playlist == 2) {
@@ -356,6 +388,14 @@ int main() {
       screen.PostEvent(Event::Custom);
     }
   });
+
+  std::string current_subtitle_text = "No subtitle";
+  player->set_subtitle_callback([&](const std::string &subtitle) {
+    // Update your UI with the subtitle
+    current_subtitle_text = subtitle;
+    std::cerr << "Received subtitle: " << subtitle << std::endl;
+    screen.PostEvent(Event::Custom);  // Trigger screen update
+});
 
   Component progress_slider = Slider("", &progress_percentage, 0, 100, 1);
   progress_slider |= CatchEvent([&](Event event) {
@@ -680,6 +720,7 @@ int main() {
                 separator(),
                 text("Available Tracks:") | bold,
                 menu->Render() | frame | flex,
+                text("Subtitles: " + current_subtitle_text) | color(Color::Blue),
                 separator(),
             }) | flex,
         }),
