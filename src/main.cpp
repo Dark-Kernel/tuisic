@@ -393,7 +393,6 @@ int main() {
   player->set_subtitle_callback([&](const std::string &subtitle) {
     // Update your UI with the subtitle
     current_subtitle_text = subtitle;
-    std::cerr << "Received subtitle: " << subtitle << std::endl;
     screen.PostEvent(Event::Custom);  // Trigger screen update
 });
 
