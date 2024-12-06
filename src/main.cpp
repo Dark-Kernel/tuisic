@@ -95,6 +95,7 @@ std::vector<std::string> get_track_ascii_art(const Track &track) {
 
 auto fetch_main(const std::string &query) {
   track_data = fetch.fetch_tracks(query);
+  temp_track_data = track_data;
   track_data_soundcloud = soundcloud.fetch_soundcloud_tracks(query);
   for (const auto &track : track_data_soundcloud) {
     track_data.push_back(track);
@@ -105,20 +106,64 @@ auto fetch_main(const std::string &query) {
   for (const auto &track : track_data) {
     track_strings.push_back(track.to_string());
   }
+  temp_track_strings = track_strings;
   return track_strings;
 }
 
-auto fetch_recent(){
-    temp_track_data = track_data;
-    track_data.clear();
-    for(const auto &track : recently_played){
-        track_data.push_back(track);
+// auto fetch_recent() {
+//   temp_track_data = track_data;
+//   track_data.clear();
+//   for (const auto &track : recently_played) {
+//     if (!recently_played.empty() &&
+//         recently_played.back().to_string() == track.to_string()) {
+//       continue;
+//     }
+//     track_data.push_back(track);
+//     // Limit size to 10
+//     if (recently_played.size() > 10) {
+//       recently_played.erase(recently_played.begin());
+//     }
+//   }
+//   for (const auto &recent : recently_played) {
+//     recently_played_strings.push_back(recent.to_string());
+//   }
+//   return recently_played_strings;
+// }
+auto fetch_recent() {
+  // temp_track_data = track_data;
+  // Clear previous data
+  recently_played_strings.clear();
+  track_data.clear();
+
+  // Limit recently played to last 10 unique tracks
+  std::vector<Track> unique_recently_played;
+  for (const auto &track : recently_played) {
+    // Check if this exact track is not already in unique list
+    auto it = std::find_if(unique_recently_played.begin(), unique_recently_played.end(),
+        [&track](const Track& existing) { return existing.to_string() == track.to_string(); });
+    
+    if (it == unique_recently_played.end()) {
+      unique_recently_played.push_back(track);
     }
-    for(const auto &recent : recently_played){
-        recently_played_strings.push_back(recent.to_string());
-    }
-    return recently_played_strings;
+  }
+
+  // Keep only the last 10 tracks
+  if (unique_recently_played.size() > 10) {
+    unique_recently_played = std::vector<Track>(
+      unique_recently_played.end() - 10, 
+      unique_recently_played.end()
+    );
+  }
+
+  // Populate track_data and recently_played_strings
+  track_data = unique_recently_played;
+  for (const auto &recent : track_data) {
+    recently_played_strings.push_back(recent.to_string());
+  }
+
+  return recently_played_strings;
 }
+
 
 void switch_playlist_source(const std::vector<Track> &new_tracks) {
   // Stop current playback
@@ -170,13 +215,14 @@ int main() {
   // Components
   // InputOption search_style = InputOption::Spacious();
   Component input_search = Input(&search_query, "Search for music...");
-  input_search = Input(&search_query, "Search for music...") | CatchEvent([&tracks, &search_query](Event event) {
-    if (event == Event::Return) {
-      tracks = fetch_main(search_query);
-      return true;
-    } 
-    return false;
-  });
+  input_search = Input(&search_query, "Search for music...") |
+                 CatchEvent([&tracks, &search_query](Event event) {
+                   if (event == Event::Return) {
+                     tracks = fetch_main(search_query);
+                     return true;
+                   }
+                   return false;
+                 });
   // search_style.transform =[](InputState state){
   //   state.element |= borderEmpty;
   //   if (state.is_placeholder) {
@@ -188,185 +234,202 @@ int main() {
   //   return state.element;
   // };
   auto menu = Menu(&tracks, &selected);
-  menu = Menu(&tracks, &selected) | CatchEvent([&button_text](Event event){
-          if (event == Event::Return) {
+  menu =
+      Menu(&tracks, &selected) | CatchEvent([&button_text](Event event) {
+        if (event == Event::Return) {
           std::cerr << "Selected: " << selected << std::endl;
-            if (selected >= 0 && selected < track_data.size()) {
-              current_source = PlaylistSource::Search;
-              if (!track_data_forestfm.empty()) {
-                player->stop();
-              }
+          if (selected >= 0 && selected < track_data.size()) {
+            current_source = PlaylistSource::Search;
+            if (!track_data_forestfm.empty()) {
               player->stop();
-              player->play(track_data[selected].url);
-              recently_played.push_back(track_data[selected]);
-              current_track = track_data[selected].name;
-              current_artist = track_data[selected].artist;
-              button_text = "Pause";
-              screen.PostEvent(Event::Custom);
             }
+            player->stop();
+            player->play(track_data[selected].url);
+            recently_played.push_back(track_data[selected]);
+            current_track = track_data[selected].name;
+            current_artist = track_data[selected].artist;
+            button_text = "Pause";
+            screen.PostEvent(Event::Custom);
+          }
+          return true;
+        }
+        // press l on selected to copy url
+        if (event == Event::AltL) {
+          if (selected >= 0 && selected < track_data.size()) {
+            std::string url = track_data[selected].url;
+            system(
+                ("echo \"" + url + "\" | xclip -selection clipboard").c_str());
+            system(("notify-send \"Copied URL: " + url + "\"").c_str());
+            std::cout << "Copied URL: " << url << std::endl;
             return true;
           }
-            // press l on selected to copy url
-            if (event == Event::AltL) {
-              if (selected >= 0 && selected < track_data.size()) {
-                std::string url = track_data[selected].url;
-                system(("echo \"" + url + "\" | xclip -selection clipboard").c_str());
-                system(("notify-send \"Copied URL: " + url + "\"").c_str());
-                std::cout << "Copied URL: " << url << std::endl;
-                return true;
-              }
-            }
-            if (event == Event::Character('L')) {
-              // if (selected >= 0 && selected < track_data.size()) {
-                  
-              // }
-                std::cerr << "pressed L" << std::endl;
-                    player->toggle_subtitles();
-            }
+        }
+        if (event == Event::Character('L')) {
+          // if (selected >= 0 && selected < track_data.size()) {
 
-          return false;
-    });
+          // }
+          std::cerr << "pressed L" << std::endl;
+          player->toggle_subtitles();
+        }
+
+        return false;
+      });
   Component volume_slider = Slider("", &volume, 0, 100, 1);
 
-  auto play_button = Button(&button_text, [&] {
-    if (current_source == PlaylistSource::ForestFM) {
-      if (player->is_playing_state()) {
-        player->pause();
-        button_text = "Play";
-      } else {
-        player->play(track_data_forestfm[current_track_index].url);
-        button_text = "Pause";
-      }
-    } else if (current_source == PlaylistSource::Search) {
-      if (selected >= 0 && selected < track_data.size()) {
-        current_source = PlaylistSource::Search;
-        // Stop any ongoing ForestFM playback
-        if (!track_data_forestfm.empty()) {
-          player->stop();
+  auto play_button = Button(
+      &button_text,
+      [&] {
+        if (current_source == PlaylistSource::ForestFM) {
+          if (player->is_playing_state()) {
+            player->pause();
+            button_text = "Play";
+          } else {
+            player->play(track_data_forestfm[current_track_index].url);
+            button_text = "Pause";
+          }
+        } else if (current_source == PlaylistSource::Search) {
+          if (selected >= 0 && selected < track_data.size()) {
+            current_source = PlaylistSource::Search;
+            // Stop any ongoing ForestFM playback
+            if (!track_data_forestfm.empty()) {
+              player->stop();
+            }
+            player->play(track_data[selected].url);
+            current_artist = track_data[selected].artist;
+            current_track = track_data[selected].name;
+            button_text = "Pause";
+          }
+        } else {
+          if (selected >= 0 && selected < track_data.size()) {
+            current_source = PlaylistSource::Search;
+            player->play(track_data[selected].url);
+            current_track = track_data[selected].name;
+            current_artist = track_data[selected].artist;
+            button_text = "Pause";
+          }
         }
-        player->play(track_data[selected].url);
-        current_artist = track_data[selected].artist;
-        current_track = track_data[selected].name;
-        button_text = "Pause";
-      }
-    } else {
-      if (selected >= 0 && selected < track_data.size()) {
-        current_source = PlaylistSource::Search;
-        player->play(track_data[selected].url);
-        current_track = track_data[selected].name;
-        current_artist = track_data[selected].artist;
-        button_text = "Pause";
-      }
-    }
-    screen.PostEvent(Event::Custom);
-  }, ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default, Color::White));
+        screen.PostEvent(Event::Custom);
+      },
+      ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default,
+                             Color::White));
 
   Justmusic justmusic;
   std::string button_text_forestfm = "▶";
-  auto play_forestfm = Button(&button_text_forestfm, [&] {
-    reset_player_state();
-    current_source = PlaylistSource::ForestFM;
-    // if (player->is_playing_state()) {
-    //     player->pause();
-    //     button_text_forestfm = "▶";
-    // } else {
-    //     player->play(track_data_forestfm[current_track_index].url);
-    //     button_text_forestfm = "❚❚";
-    // }
+  auto play_forestfm = Button(
+      &button_text_forestfm,
+      [&] {
+        reset_player_state();
 
-    // Use a flag to prevent multiple simultaneous requests
-    static std::atomic<bool> is_fetching{false};
+        if (player->is_playing_state()) {
+        if(current_source == PlaylistSource::ForestFM){
+            
+            player->pause();
+            std::cerr << "TRIGGER paused" << std::endl;
+            button_text_forestfm = "▶";
+            return;
+            }
+            }// } else {
+        //     player->play(track_data_forestfm[current_track_index].url);
+        //     button_text_forestfm = "❚❚";
+        // }
 
-    if (is_fetching) {
-      return; // Prevent multiple simultaneous fetch attempts
-    }
+        // Use a flag to prevent multiple simultaneous requests
+        static std::atomic<bool> is_fetching{false};
 
-    // Reset track information
-    current_track = "Fetching tracks...";
-    screen.PostEvent(Event::Custom);
-
-    // Consider using a separate thread for fetching
-    std::thread fetch_thread([&]() {
-      is_fetching = true;
-      try {
-        track_data_forestfm = justmusic.getMP3URL();
-
-        // Assuming you have a way to queue events or update on the main thread
-        current_track =
-            track_data_forestfm.empty() ? "No tracks found" : "Tracks fetched";
-
-        if (!track_data_forestfm.empty()) {
-          // Create playlist of URLs
-          std::vector<std::string> track_urls;
-          for (const auto &track : track_data_forestfm) {
-            track_urls.push_back(track.url);
-          }
-          current_album = track_data_forestfm[0].name;
-
-          // Stop current playback if needed
-          if (player->is_playing_state()) {
-            player->stop(); // Complete stop instead of just pausing
-          }
-
-          // Create playlist and start playing
-          player->create_playlist(track_urls);
-          current_track_index = 0;
-          button_text_forestfm = "❚❚";
-
-          // Update current track info
-          current_track = track_data_forestfm[0].name;
-          current_artist = track_data_forestfm[0].artist;
-          button_text = "Pause";
+        if (is_fetching) {
+          return; // Prevent multiple simultaneous fetch attempts
         }
 
+        // Reset track information
+        current_track = "Fetching tracks...";
         screen.PostEvent(Event::Custom);
-      } catch (const std::exception &e) {
-        current_track = "Error fetching tracks: " + std::string(e.what());
-        screen.PostEvent(Event::Custom);
-      }
 
-      is_fetching = false;
-    });
-    fetch_thread.detach(); // Allow thread to run independently
-  },ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default, Color::White));
+        // Consider using a separate thread for fetching
+        std::thread fetch_thread([&]() {
+          is_fetching = true;
+          try {
+            track_data_forestfm = justmusic.getMP3URL();
 
+            // Assuming you have a way to queue events or update on the main
+            // thread
+            current_track = track_data_forestfm.empty() ? "No tracks found"
+                                                        : "Tracks fetched";
 
+            is_fetching = false;
+            if (!track_data_forestfm.empty()) {
+              // Create playlist of URLs
+              std::vector<std::string> track_urls;
+              for (const auto &track : track_data_forestfm) {
+                track_urls.push_back(track.url);
+              }
+              current_album = track_data_forestfm[0].name;
+
+              // Stop current playback if needed
+              if (player->is_playing_state()) {
+                player->stop(); // Complete stop instead of just pausing
+              }
+
+              // Create playlist and start playing
+              player->create_playlist(track_urls);
+              current_track_index = 0;
+              button_text_forestfm = "❚❚";
+                current_source = PlaylistSource::ForestFM;
+              // Update current track info
+              current_track = track_data_forestfm[0].name;
+              current_artist = track_data_forestfm[0].artist;
+              player->play(track_data_forestfm[0].url);
+              button_text = "Pause";
+            }
+
+            screen.PostEvent(Event::Custom);
+          } catch (const std::exception &e) {
+            current_track = "Error fetching tracks: " + std::string(e.what());
+            screen.PostEvent(Event::Custom);
+          }
+
+        });
+        fetch_thread.detach(); // Allow thread to run independently
+      },
+      ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default,
+                             Color::White));
 
   std::string button_text_classic = "▶";
-  auto play_classic = Button(&button_text_classic, [&] {
-            reset_player_state();
-          },ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default, Color::White));
+  auto play_classic = Button(
+      &button_text_classic, [&] { reset_player_state(); },
+      ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default,
+                             Color::White));
 
-  std::vector<std::string> playlist_items = {"Favorites", "Recently Played",
-                                             "Custom Playlist 122"};
+  std::vector<std::string> playlist_items = {"Home", "Recently Played", "Favorites",
+                                             "CustomPlaylist"};
   int selected_playlist = 0;
-  auto playlist_menu = Menu(&playlist_items, &selected_playlist) | CatchEvent([&](Event event) {
-    if (event == Event::Return) {
-      if (selected_playlist == 0) {
-        // current_source = PlaylistSource::Favorites;
-        current_track = "Favorites";
-        tracks.clear();
-        track_data.clear();
-        track_data = temp_track_data;
-        tracks = temp_track_strings;
-      } else if (selected_playlist == 1) {
-        // current_source = PlaylistSource::Recent;
-        current_track = "Recently Played";
-        temp_track_strings = tracks;
-        tracks.clear();
-        tracks = fetch_recent();
-      } else if (selected_playlist == 2) {
-        // current_source = PlaylistSource::Custom;
-        current_track = "Custom Playlist 122";
-      }
-      screen.PostEvent(Event::Custom);
-    }
-    return false;
-      
-  });
-
-
-
+  auto playlist_menu =
+      Menu(&playlist_items, &selected_playlist) | CatchEvent([&](Event event) {
+        if (event == Event::Return) {
+          if (selected_playlist == 0) {
+            // current_source = PlaylistSource::Favorites;
+            current_track = "Home";
+            tracks.clear();
+            track_data.clear();
+            track_data = temp_track_data;
+            tracks = temp_track_strings;
+          } else if (selected_playlist == 1) {
+            // current_source = PlaylistSource::Recent;
+            current_track = "Recently Played";
+            temp_track_strings = tracks;
+            tracks.clear();
+            tracks = fetch_recent();
+          } else if (selected_playlist == 2) {
+            // current_source = PlaylistSource::Custom;
+            current_track = "Favorites";
+          } else if (selected_playlist == 3) {
+            // current_source = PlaylistSource::Custom;
+            current_track = "Custom Playlist";
+          }
+          screen.PostEvent(Event::Custom);
+          return true;
+        }
+        return false;
+      });
 
   // player callbacks
   player->set_state_callback([&] {
@@ -393,8 +456,8 @@ int main() {
   player->set_subtitle_callback([&](const std::string &subtitle) {
     // Update your UI with the subtitle
     current_subtitle_text = subtitle;
-    screen.PostEvent(Event::Custom);  // Trigger screen update
-});
+    screen.PostEvent(Event::Custom); // Trigger screen update
+  });
 
   Component progress_slider = Slider("", &progress_percentage, 0, 100, 1);
   progress_slider |= CatchEvent([&](Event event) {
@@ -431,7 +494,6 @@ int main() {
 
     screen.PostEvent(Event::Custom);
   });
-
 
   auto button_next = Button("->", [&] {
     if (current_source == PlaylistSource::ForestFM &&
@@ -475,123 +537,125 @@ int main() {
     player->next_track(track_data, selected);
   });
 
-
-
   // Component tree
   auto component = Container::Vertical({
-          // Top section
-          Container::Horizontal({
-                  Container::Vertical({
-                  playlist_menu,
-                  play_forestfm,
-                  play_classic,
-                  volume_slider,
-                          }),
-
-                  Container::Vertical({
-
-                          input_search,
-                          menu,
-                          }),
-
-                  Container::Vertical({
-                          // progress_slider,
-                          button_prev,
-                          play_button,
-                          button_next,
-                          }),
-
-              
+      // Top section
+      Container::Horizontal({
+          Container::Vertical({
+              playlist_menu,
+              play_forestfm,
+              play_classic,
+              volume_slider,
           }),
+
+          Container::Vertical({
+
+              input_search,
+              menu,
+          }),
+
+          Container::Vertical({
+              // progress_slider,
+              button_prev,
+              play_button,
+              button_next,
+          }),
+
+      }),
   });
 
+  component =
+      component | CatchEvent([&](Event event) {
+        // Check if search input is focused
+        bool is_search_focused = input_search->Focused();
 
-  component = component | CatchEvent([&](Event event) {
-    // Check if search input is focused
-    bool is_search_focused = input_search->Focused();
-
-    // Handle keyboard events with consideration of input focus
-    if (is_search_focused) {
-        // When search is focused, allow normal input behavior
-        if (event == Event::Character('q')) {
+        // Handle keyboard events with consideration of input focus
+        if (is_search_focused) {
+          // When search is focused, allow normal input behavior
+          if (event == Event::Character('q')) {
             // Do nothing when 'q' is pressed in search input
             return false;
-        }
-        if (event == Event::Character(' ')) {
+          }
+          if (event == Event::Character(' ')) {
             // Allow space to be entered in search input
             return false;
-        }
+          }
 
-        if(event == Event::Escape){
+          if (event == Event::Escape) {
             menu->TakeFocus();
             return true;
-        }
-    } else {
-        // Handle global keyboard shortcuts when search is not focused
-        if (event == Event::Character(' ')) {
+          }
+        } else {
+          // Handle global keyboard shortcuts when search is not focused
+          if (event == Event::Character(' ')) {
             // Space for play/pause
-            if (current_source == PlaylistSource::Search && !track_data.empty()) {
-                if (player->is_playing_state()) {
-                    player->pause();
-                    button_text = "Play";
-                } else {
-                    player->play(track_data[selected].url);
-                    current_track = track_data[selected].name;
-                    current_artist = track_data[selected].artist;
-                    button_text = "Pause";
-                }
+            if (current_source == PlaylistSource::Search &&
+                !track_data.empty()) {
+              if (player->is_playing_state()) {
+                player->pause();
+                button_text = "Play";
+              } else {
+                player->play(track_data[selected].url);
+                current_track = track_data[selected].name;
+                current_artist = track_data[selected].artist;
+                button_text = "Pause";
+              }
             } else if (current_source == PlaylistSource::ForestFM &&
                        !track_data_forestfm.empty()) {
-                if (player->is_playing_state()) {
-                    player->pause();
-                    button_text = "Play";
-                } else {
-                    player->play(track_data_forestfm[current_track_index].url);
-                    current_track = track_data_forestfm[current_track_index].name;
-                    current_artist = track_data_forestfm[current_track_index].artist;
-                    button_text = "Pause";
-                }
+              if (player->is_playing_state()) {
+                player->pause();
+                button_text = "Play";
+                button_text_forestfm = "▶";
+              } else {
+                player->play(track_data_forestfm[current_track_index].url);
+                current_track = track_data_forestfm[current_track_index].name;
+                current_artist =
+                    track_data_forestfm[current_track_index].artist;
+                button_text = "Pause";
+                button_text_forestfm = "❚❚";
+
+              }
             }
             screen.PostEvent(Event::Custom);
             return true;
+          }
         }
-    }
 
-    // Handle Enter key for playing selected track
-    // if (event == Event::Return) {
-    //     if (!search_query.empty()) {
-    //         // If search query is not empty, perform search
-    //         tracks = fetch_main(search_query);
-    //     } else if (!track_data.empty() && selected >= 0 &&
-    //                selected < track_data.size()) {
-    //         // If a track is selected, play it
-    //         current_track = "Hmmmmmmmmm;";
-    //         current_source = PlaylistSource::Search;
+        // Handle Enter key for playing selected track
+        // if (event == Event::Return) {
+        //     if (!search_query.empty()) {
+        //         // If search query is not empty, perform search
+        //         tracks = fetch_main(search_query);
+        //     } else if (!track_data.empty() && selected >= 0 &&
+        //                selected < track_data.size()) {
+        //         // If a track is selected, play it
+        //         current_track = "Hmmmmmmmmm;";
+        //         current_source = PlaylistSource::Search;
 
-    //         current_track_index = selected;  // Explicitly set current track index
-    //         player->play(track_data[selected].url);
-    //         current_track = track_data[selected].name;
-    //         current_artist = track_data[selected].artist;
-    //         button_text = "Pause";
-    //         screen.PostEvent(Event::Custom);
-    //     }
-    //     return true;
-    // }
+        //         current_track_index = selected;  // Explicitly set current
+        //         track index player->play(track_data[selected].url);
+        //         current_track = track_data[selected].name;
+        //         current_artist = track_data[selected].artist;
+        //         button_text = "Pause";
+        //         screen.PostEvent(Event::Custom);
+        //     }
+        //     return true;
+        // }
 
-    // Global quit shortcut
-    if (event == Event::Character('q')) {
-        screen.Exit();
-        return true;
-    }
+        // Global quit shortcut
+        if (event == Event::Character('q')) {
+          screen.Exit();
+          return true;
+        }
 
-    // Escape to unfocus search box
-    if (event == Event::Escape) {
-        screen.PostEvent(Event::Custom);
-        return true;
-    }
+        // Escape to unfocus search box
+        if (event == Event::Escape) {
+          screen.PostEvent(Event::Custom);
+          return true;
+        }
 
-    return false;
-});
+        return false;
+      });
   // component =
   //     component | CatchEvent([&](Event event) {
   //       // Handle Enter key for playing selected track
@@ -614,7 +678,8 @@ int main() {
 
   //       // Space for play/pause
   //       if (event == Event::Character(' ')) {
-  //         if (current_source == PlaylistSource::Search && !track_data.empty()) {
+  //         if (current_source == PlaylistSource::Search &&
+  //         !track_data.empty()) {
   //           if (player->is_playing_state()) {
   //             player->pause();
   //             button_text = "Play";
@@ -672,19 +737,20 @@ int main() {
             vbox({
                 // text("Library") | bold,
                 vbox({
-                    text("Playlists: ") | bold,
-                    separator(),
+                    text("Playlists: ") | bold, separator(),
                     playlist_menu->Render(),
-                // }) | border,
+                    // }) | border,
                 }),
                 separator(),
                 hbox({
-                    play_forestfm->Render() | size(WIDTH, EQUAL, 5) | bold | center,
+                    play_forestfm->Render() | size(WIDTH, EQUAL, 5) | bold |
+                        center,
                     text("Forest FM") | bold | center,
                 }) | center,
                 separator(),
                 hbox({
-                    play_classic->Render() | size(WIDTH, EQUAL, 5) | bold | center,
+                    play_classic->Render() | size(WIDTH, EQUAL, 5) | bold |
+                        center,
                     text("ClassicFM") | bold | center,
                 }) | center,
                 separator(),
@@ -719,11 +785,16 @@ int main() {
                 separator(),
                 text("Available Tracks:") | bold,
                 menu->Render() | frame | flex,
-                text("Subtitles: " + current_subtitle_text) | color(Color::Blue),
+                // text("Subtitles: " + current_subtitle_text) |
+                // color(Color::Blue),
+                hbox({
+                    text("Subtitle: ") | bold | color(Color::LightSkyBlue1),
+                    text(current_subtitle_text),
+                }),
                 separator(),
             }) | flex,
         }),
-       filler(), 
+        filler(),
         vbox({
             hbox({
                 // text(format_time(current_position)),
@@ -743,11 +814,11 @@ int main() {
                   color(Color::White),
               filler(),
               hbox({
-                text("⌨️ ") | dim,
-                text("Space:Play ") | dim,
-                text("↑/↓:Navigate ") | dim,
-                text("+/-:Volume ") | dim,
-                text("S:Shuffle ") | dim,
+                  text("⌨️ ") | dim,
+                  text("Space:Play ") | dim,
+                  text("↑/↓:Navigate ") | dim,
+                  text("+/-:Volume ") | dim,
+                  text("S:Shuffle ") | dim,
               }) | center,
               text(fmt::format(" {} Tracks ",
                                current_source == PlaylistSource::Search

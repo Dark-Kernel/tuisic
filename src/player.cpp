@@ -179,14 +179,26 @@ public:
 
     // Clear and swap playlist
     playlist.clear();
-    playlist.swap(const_cast<std::vector<std::string> &>(urls));
+    // playlist.swap(const_cast<std::vector<std::string> &>(urls));
     current_playlist_index = 0;
+    playlist = urls;
+    mpv_command_string(mpv.get(), "playlist-clear");
+    if (!playlist.empty()) {
+
+      const char *cmd[] = {"loadfile", playlist[0].c_str(), NULL};
+      int result = mpv_command(mpv.get(), cmd);
+      if (result < 0) {
+        std::cerr << "Failed to load first track. Error code: " << result
+                  << std::endl;
+        return;
+      }
+    }
 
     // Load playlist
-    for (const auto &url : playlist) {
-      const char *cmd[] = {"loadfile", url.c_str(), "append", NULL};
-      mpv_command(mpv.get(), cmd);
-    }
+    // for (const auto &url : playlist) {
+    //   const char *cmd[] = {"loadfile", url.c_str(), "append", NULL};
+    //   mpv_command(mpv.get(), cmd);
+    // }
   }
 
   void shuffle_playlist() {
@@ -319,8 +331,8 @@ private:
         break;
       case MPV_EVENT_TICK: {
         char *sub_text = NULL;
-        if (mpv_get_property(mpv.get(), "sub-text", MPV_FORMAT_STRING, &sub_text) >=
-            0) {
+        if (mpv_get_property(mpv.get(), "sub-text", MPV_FORMAT_STRING,
+                             &sub_text) >= 0) {
           if (sub_text) {
             update_subtitle(sub_text);
             mpv_free(sub_text);
@@ -342,7 +354,7 @@ private:
     } else if (strcmp(prop->name, "duration") == 0 &&
                prop->format == MPV_FORMAT_DOUBLE) {
       duration = *static_cast<double *>(prop->data);
-    } 
+    }
   }
 
   void handle_playback_restart() {
