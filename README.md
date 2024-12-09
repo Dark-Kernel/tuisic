@@ -13,6 +13,11 @@ It fetches songs from some platforms:
 - ForestFM
 - YouTube ( Yet to be implemented )
 
+## Dependencies 
+```sh
+sudo pacman -S curl mpv
+```
+
 ## 
 Build, Compile & Run
 
@@ -25,6 +30,10 @@ make
 
 ## What it uses ?
 
-It uses FTXUI which provides efficient TUI interface.
-MPV is used as player.
-CURL to make requests.
+- FTXUI
+- libmpv
+- libcurl
+
+
+## Contribution 
+It's open for contribution, read CONTRIBUTION.md for more information.
