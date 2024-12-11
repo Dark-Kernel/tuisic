@@ -261,6 +261,15 @@ public:
     }
   }
 
+  void resume(){
+      std::lock_guard<std::mutex> lock(player_mutex);
+      if (is_paused) {
+        const char *cmd[] = {"cycle", "pause", NULL};
+        mpv_command_async(mpv.get(), 0, cmd);
+        is_paused = false;
+      }
+  }
+
   void seek(double position) {
     std::lock_guard<std::mutex> lock(player_mutex);
     std::string pos = std::to_string(position);

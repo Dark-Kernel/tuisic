@@ -243,7 +243,7 @@ int main() {
             if (!track_data_forestfm.empty()) {
               player->stop();
             }
-            player->stop();
+            /* player->stop(); */
             player->play(track_data[selected].url);
             recently_played.push_back(track_data[selected]);
             current_track = track_data[selected].name;
@@ -257,8 +257,14 @@ int main() {
         if (event == Event::AltL) {
           if (selected >= 0 && selected < track_data.size()) {
             std::string url = track_data[selected].url;
-            system(
-                ("echo \"" + url + "\" | xclip -selection clipboard").c_str());
+            std::string is_wayland = getenv("XDG_SESSION_TYPE");
+            if (is_wayland == "wayland") {
+              system(("echo \"" + url + "\" | wl-copy").c_str());
+              system(("notify-send \"Copied URL: " + url + "\"").c_str());
+              std::cout << "Copied URL: " << url << std::endl;
+              return true;
+            }
+            system(("echo \"" + url + "\" | xclip -selection clipboard").c_str());
             system(("notify-send \"Copied URL: " + url + "\"").c_str());
             std::cout << "Copied URL: " << url << std::endl;
             return true;
@@ -595,9 +601,10 @@ int main() {
                 player->pause();
                 button_text = "Play";
               } else {
-                player->play(track_data[selected].url);
-                current_track = track_data[selected].name;
-                current_artist = track_data[selected].artist;
+                /* player->play(track_data[selected].url); */
+                /* current_track = track_data[selected].name; */
+                /* current_artist = track_data[selected].artist; */
+                player->resume();
                 button_text = "Pause";
               }
             } else if (current_source == PlaylistSource::ForestFM &&
