@@ -2,9 +2,9 @@
 
 TUI Online Music Streaming application.
 
-It let's you search and play online songs from cli hassle free.
+![some](./example/tuisic.mp4)
 
-![some](./example/1733153980.jpg)
+It let's you search and play online songs from cli hassle free.
 
 ## Sources
 It fetches songs from some platforms:
@@ -30,10 +30,10 @@ make
 
 ## What it uses ?
 
-- FTXUI
-- libmpv
-- libcurl
+- [FTXUI](https://github.com/ArthurSonzogni/FTXUI)
+- [libmpv](https://github.com/mpv-player/mpv/tree/master/libmpv)
+- [libcurl](https://curl.se/libcurl/)
 
 
 ## Contribution 
-It's open for contribution, read CONTRIBUTION.md for more information.
+It's open for contribution, read [CONTRIBUTING.md](./CONTRIBUTING.md) for more information.
