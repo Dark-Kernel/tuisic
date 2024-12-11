@@ -2,9 +2,7 @@
 
 TUI Online Music Streaming application.
 
-
-https://github.com/user-attachments/assets/c37dbf88-68fa-4bd9-8289-ad6937bd77a7
-
+https://github.com/user-attachments/assets/8e97eced-cf83-447b-8160-b2871ca4cb61
 
 It let's you search and play online songs from cli hassle free.
 
