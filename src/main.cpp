@@ -1,8 +1,4 @@
-#include "fetch.cpp"
 #include "ftxui/dom/elements.hpp"
-#include "justmusic.cpp"
-#include "player.cpp"
-#include "soundcloud.cpp"
 #include <curl/curl.h>
 #include <curl/urlapi.h>
 #include <ftxui/component/component.hpp> // for Renderer, Input, Menu, etc.
@@ -15,12 +11,21 @@
 #include <string>
 #include <vector>
 
+
+#include "fetch.cpp"
+#include "justmusic.cpp"
+#include "player.cpp"
+#include "soundcloud.cpp"
+#include "saavn.cpp"
+
 std::vector<std::string> track_strings;
 std::vector<std::string> temp_track_strings;
 
 std::vector<std::string> track_strings_forestfm;
 std::vector<Track> track_data;
 std::vector<Track> temp_track_data;
+std::vector<Track> track_data_saavn;
+std::vector<Track> track_data_lastfm;
 std::vector<Track> track_data_soundcloud;
 std::vector<Track> track_data_forestfm;
 std::string current_track = "🎵 Music Streaming App 🎵";
@@ -31,6 +36,7 @@ int current_track_index = 0; // Track the current track index
 
 Fetch fetch;
 SoundCloud soundcloud;
+Saavn saavn;
 auto player = std::make_shared<MusicPlayer>();
 
 #include <fmt/core.h>
@@ -77,6 +83,17 @@ std::map<std::string, std::vector<std::string>> ascii_art = {
          R"(  \     /     )",
          R"(   `---'      )",
      }},
+    {"Equalizer",
+     {
+        R"(         ██            )",
+        R"(         ██            )",
+        R"(      ▁▁ ██ ▂▂ ▆▆      )",
+        R"(      ██ ██ ██ ██      )",
+        R"(      ██ ██ ██ ██      )",
+        R"(   ██ ██ ██ ██ ██ ██   )",
+        R"(██ ██ ██ ██ ██ ██ ██   )",
+        R"(██ ██ ██ ██ ██ ██ ██ ██)",
+    }},
     {"default",
      {
          R"(   /\___/\    )",
@@ -89,17 +106,25 @@ std::map<std::string, std::vector<std::string>> ascii_art = {
      }}};
 
 std::vector<std::string> get_track_ascii_art(const Track &track) {
-  std::string genre = "default";
+  /* std::string genre = "default"; */
+  std::string genre = "Equalizer";
   return ascii_art[genre];
 }
 
 auto fetch_main(const std::string &query) {
-  track_data = fetch.fetch_tracks(query);
+  /* track_data = fetch.fetch_tracks(query); */
+  track_data_saavn = saavn.fetch_tracks(query);
+  track_data = track_data_saavn;
   temp_track_data = track_data;
+  track_data_lastfm = fetch.fetch_tracks(query);
   track_data_soundcloud = soundcloud.fetch_soundcloud_tracks(query);
+  for (const auto &track : track_data_lastfm) {
+    track_data.push_back(track);
+  }
   for (const auto &track : track_data_soundcloud) {
     track_data.push_back(track);
   }
+
   track_strings.clear();
 
   // Convert tracks to display strings for menu
@@ -233,6 +258,10 @@ int main() {
   //   }
   //   return state.element;
   // };
+  std::vector<std::string> test_track = {"Track 1", "Track 2", "Track 3"};
+  auto menu2 = Menu(&test_track, &selected, MenuOption::Horizontal());
+  /* MenuOption menu_style = Menu */
+  
   auto menu = Menu(&tracks, &selected);
   menu =
       Menu(&tracks, &selected) | CatchEvent([&button_text](Event event) {
@@ -558,6 +587,7 @@ int main() {
 
               input_search,
               menu,
+            menu2,
           }),
 
           Container::Vertical({
@@ -771,7 +801,7 @@ int main() {
                       for (const auto &line : art) {
                         art_elements.push_back(text(line) | color(Color::Blue));
                       }
-                      return vbox(std::move(art_elements)) | border | center;
+                      return vbox(std::move(art_elements)) | center;
                     }(),
                 }) | center,
                 separator(),
@@ -791,13 +821,25 @@ int main() {
                 }) | border,
                 separator(),
                 text("Available Tracks:") | bold,
-                menu->Render() | frame | flex,
+                /* menu->Render() | frame | flex, */
+                hbox({
+                vbox({
+
+                        menu->Render() | frame | size(HEIGHT, LESS_THAN, 22) | size(WIDTH, LESS_THAN, 90),
+                        }),
+                separator(),
+                vbox({
+
+                        menu2->Render(),
+                        }),
+                }),
                 // text("Subtitles: " + current_subtitle_text) |
                 // color(Color::Blue),
-                hbox({
-                    text("Subtitle: ") | bold | color(Color::LightSkyBlue1),
-                    text(current_subtitle_text),
-                }),
+                ////////////////////// Working subtitles /////////////////////////
+                /* hbox({ */
+                /*     text("Subtitle: ") | bold | color(Color::LightSkyBlue1), */
+                /*     text(current_subtitle_text), */
+                /* }), */
                 separator(),
             }) | flex,
         }),
