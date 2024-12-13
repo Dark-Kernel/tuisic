@@ -17,6 +17,8 @@
 #include "player.cpp"
 #include "soundcloud.cpp"
 #include "saavn.cpp"
+#include "playlist_handler.cpp"
+#include "localStorage.cpp"
 
 std::vector<std::string> track_strings;
 std::vector<std::string> temp_track_strings;
@@ -305,6 +307,13 @@ int main() {
           // }
           std::cerr << "pressed L" << std::endl;
           player->toggle_subtitles();
+        }
+        if(event == Event::Character('a')){
+            if(selected >= 0 && selected < track_data.size()){
+                if(!isFavorite(track_data[selected].name)){
+                    favorite_tracks.push_back(track_data[selected]);
+                }
+            }
         }
 
         return false;
@@ -681,6 +690,7 @@ int main() {
 
         // Global quit shortcut
         if (event == Event::Character('q')) {
+          saveData(recently_played, favorite_tracks);  
           screen.Exit();
           return true;
         }
