@@ -192,6 +192,8 @@ auto fetch_recent() {
 }
 
 
+
+
 void switch_playlist_source(const std::vector<Track> &new_tracks) {
   // Stop current playback
   player->stop();
@@ -464,7 +466,12 @@ int main() {
             tracks = fetch_recent();
           } else if (selected_playlist == 2) {
             // current_source = PlaylistSource::Custom;
+            if(!(temp_track_strings.size() > 0)){
+            temp_track_strings = tracks;
+            }
             current_track = "Favorites";
+            tracks.clear();
+            tracks = fetch_favorites(track_data);
           } else if (selected_playlist == 3) {
             // current_source = PlaylistSource::Custom;
             current_track = "Custom Playlist";
@@ -763,6 +770,7 @@ int main() {
   //       return false;
   //     });
 
+loadData(recently_played, favorite_tracks);
   // Layout
   auto renderer = Renderer(component, [&] {
     return vbox({
@@ -835,7 +843,7 @@ int main() {
                 hbox({
                 vbox({
 
-                        menu->Render() | frame | size(HEIGHT, LESS_THAN, 22) | size(WIDTH, LESS_THAN, 90),
+                        menu->Render() | frame | size(HEIGHT, LESS_THAN, 22) | size(WIDTH, EQUAL, 90),
                         }),
                 separator(),
                 vbox({
