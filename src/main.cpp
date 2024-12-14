@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fmt/core.h>
+#include <fmt/format.h>
 
 
 #include "fetch.cpp"
@@ -30,6 +32,7 @@ std::vector<Track> track_data_saavn;
 std::vector<Track> track_data_lastfm;
 std::vector<Track> track_data_soundcloud;
 std::vector<Track> track_data_forestfm;
+std::vector<Track> next_tracks;
 std::string current_track = "🎵 Music Streaming App 🎵";
 std::string current_artist = "Welcome back, User!";
 std::vector<Track> recently_played;
@@ -41,14 +44,13 @@ SoundCloud soundcloud;
 Saavn saavn;
 auto player = std::make_shared<MusicPlayer>();
 
-#include <fmt/core.h>
-#include <fmt/format.h>
 
 enum class PlaylistSource { None, Search, ForestFM };
 PlaylistSource current_source = PlaylistSource::None;
 
 auto screen = ftxui::ScreenInteractive::Fullscreen();
 int selected = 0;
+int selectedd = 0;
 
 std::string format_time(double seconds) {
   int minutes = static_cast<int>(seconds) / 60;
@@ -263,7 +265,7 @@ int main() {
   //   return state.element;
   // };
   std::vector<std::string> test_track = {"Track 1", "Track 2", "Track 3"};
-  auto menu2 = Menu(&test_track, &selected, MenuOption::Horizontal());
+  auto menu2 = Menu(&test_track, &selectedd, MenuOption::Horizontal());
   /* MenuOption menu_style = Menu */
   
   auto menu = Menu(&tracks, &selected);
@@ -281,6 +283,7 @@ int main() {
             recently_played.push_back(track_data[selected]);
             current_track = track_data[selected].name;
             current_artist = track_data[selected].artist;
+            next_tracks = saavn.fetch_next_tracks(track_data[selected].id);
             button_text = "Pause";
             screen.PostEvent(Event::Custom);
           }
@@ -600,10 +603,9 @@ int main() {
           }),
 
           Container::Vertical({
-
               input_search,
               menu,
-            menu2,
+              menu2,
           }),
 
           Container::Vertical({
@@ -843,7 +845,7 @@ loadData(recently_played, favorite_tracks);
                 hbox({
                 vbox({
 
-                        menu->Render() | frame | size(HEIGHT, LESS_THAN, 22) | size(WIDTH, EQUAL, 90),
+                        menu->Render() | frame | size(HEIGHT, EQUAL, 22) | size(WIDTH, EQUAL, 90),
                         }),
                 separator(),
                 vbox({

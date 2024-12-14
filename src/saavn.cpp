@@ -25,6 +25,9 @@ class Saavn {
                     if (result.HasMember("title") && result["title"].IsString()) {
                         track.name = result["title"].GetString();
                     }
+                    if (result.HasMember("id") && result["id"].IsString()) {
+                        track.id = result["id"].GetString();
+                    }
                     if (result.HasMember("perma_url") && result["perma_url"].IsString()) {
                         track.url = result["perma_url"].GetString();
                     }
@@ -101,6 +104,13 @@ class Saavn {
             std::string readBuffer = make_request(url);
             return extractTracks(readBuffer);
         }
+
+        std::vector<Track> fetch_next_tracks(std::string id) {
+            std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + id;
+            std::string readBuffer = make_request(url);
+            return extractTracks(readBuffer);
+        }
+
 
 };
 
