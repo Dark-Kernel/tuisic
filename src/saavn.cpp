@@ -15,6 +15,22 @@ class Saavn {
             return size * nmemb;
         }
 
+        std::vector<Track> extractNextTracks(const std::string &json) {
+            std::vector<Track> tracks;
+            rapidjson::Document doc;
+            doc.Parse(json.c_str());
+            for(const auto &result : doc.GetArray()){
+                Track track;
+                track.name = result["title"].GetString();
+                track.id = result["id"].GetString();
+                track.url = result["perma_url"].GetString();
+                track.artist = result["more_info"]["artistMap"]["primary_artists"][0]["name"].GetString();
+                tracks.push_back(track);
+
+            }
+            return tracks;
+        }
+
         std::vector<Track> extractTracks(const std::string &json) {
             std::vector<Track> tracks;
             rapidjson::Document doc;
@@ -106,9 +122,15 @@ class Saavn {
         }
 
         std::vector<Track> fetch_next_tracks(std::string id) {
-            std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + id;
+            CURL *curl = curl_easy_init();
+            if (!curl) {
+                throw std::runtime_error("CURL initialization failed.");
+            }
+
+            std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + std::string(curl_easy_escape(curl, id.c_str(), id.length()));
+            curl_easy_cleanup(curl);
             std::string readBuffer = make_request(url);
-            return extractTracks(readBuffer);
+            return extractNextTracks(readBuffer);
         }
 
 

@@ -261,13 +261,13 @@ public:
     }
   }
 
-  void resume(){
-      std::lock_guard<std::mutex> lock(player_mutex);
-      if (is_paused) {
-        const char *cmd[] = {"cycle", "pause", NULL};
-        mpv_command_async(mpv.get(), 0, cmd);
-        is_paused = false;
-      }
+  void resume() {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    if (is_paused) {
+      const char *cmd[] = {"cycle", "pause", NULL};
+      mpv_command_async(mpv.get(), 0, cmd);
+      is_paused = false;
+    }
   }
 
   void seek(double position) {
@@ -286,6 +286,20 @@ public:
     is_playing = false;
     is_paused = false;
     current_playlist_index = -1;
+  }
+
+  void on_track_end() {
+    std::lock_guard<std::mutex> lock(player_mutex);
+
+    // Move to next track in playlist
+    current_playlist_index++;
+
+    if (current_playlist_index < playlist.size()) {
+      // Play next track
+      const char *cmd[] = {"loadfile", playlist[current_playlist_index].c_str(),
+                           NULL};
+      mpv_command(mpv.get(), cmd);
+    }
   }
 
   // Callback setters

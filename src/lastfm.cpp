@@ -5,7 +5,7 @@
 #include "Track.h"
 #include <mpv/client.h>
 
-class Fetch {
+class Lastfm {
     public:
         // Callback for CURL
         static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {

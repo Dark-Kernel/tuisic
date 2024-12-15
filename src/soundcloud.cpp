@@ -73,7 +73,7 @@ class SoundCloud{
         }
 
         // Main function to fetch tracks from search
-        std::vector<Track> fetch_soundcloud_tracks(const std::string& search_query, bool is_user_profile = false) {
+        std::vector<Track> fetch_tracks(const std::string& search_query, bool is_user_profile = false) {
             CURL* curl = curl_easy_init();
             std::string readBuffer;
             std::vector<Track> tracks;
