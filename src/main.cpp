@@ -27,6 +27,7 @@
 std::vector<std::string> track_strings;
 std::vector<std::string> home_track_strings;
 std::vector<std::string> recently_played_strings;
+std::vector<std::string> trending_track_strings;
 
 // Actual track data
 std::vector<Track> track_data;
@@ -37,6 +38,7 @@ std::vector<Track> track_data_soundcloud;
 std::vector<Track> track_data_forestfm;
 std::vector<Track> next_tracks;
 std::vector<Track> recently_played;
+std::vector<Track> trending_tracks;
 
 std::string current_track = "🎵 Music Streaming App 🎵";
 std::string current_artist = "Welcome back, User!";
@@ -212,6 +214,12 @@ int main() {
   // Volume control
   int volume = 100;
 
+  ///////////// NEED TO FIX IN RAPIDJSON EXTRATION /////////////
+  /* trending_tracks = saavn.fetch_trending(); */
+  /* for (const auto &track : trending_tracks) { */
+  /*   trending_track_strings.push_back(track.name); */
+  /* } */
+
   // Components
   Component input_search = Input(&search_query, "Search for music...");
   input_search = Input(&search_query, "Search for music...") |
@@ -257,12 +265,11 @@ int main() {
                   for (const auto &track : next_tracks) {
                     next_track_urls.push_back(track.url);
                   }
-                  next_tracks.insert(next_tracks.begin(), track_data[selected]); 
-                  
+                  next_tracks.insert(next_tracks.begin(), track_data[selected]);
 
                   {
-                  std::lock_guard<std::mutex> lock(playlist_mutex);
-                  next_playlist = next_track_urls;
+                    std::lock_guard<std::mutex> lock(playlist_mutex);
+                    next_playlist = next_track_urls;
                   }
                   player->create_playlist(next_track_urls);
                   current_track_index = 0;
@@ -353,7 +360,6 @@ int main() {
       ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default,
                              Color::White));
 
-
   std::string button_text_forestfm = "▶";
   auto play_forestfm = Button(
       &button_text_forestfm,
@@ -387,7 +393,8 @@ int main() {
           try {
             track_data_forestfm = justmusic.getMP3URL();
 
-            // Assuming you have a way to queue events or update on the main thread
+            // Assuming you have a way to queue events or update on the main
+            // thread
             current_track = track_data_forestfm.empty() ? "No tracks found"
                                                         : "Tracks fetched";
 
@@ -428,13 +435,11 @@ int main() {
       ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default,
                              Color::White));
 
-
   std::string button_text_classic = "▶";
   auto play_classic = Button(
       &button_text_classic, [&] { reset_player_state(); },
       ButtonOption::Animated(Color::Default, Color::GrayDark, Color::Default,
                              Color::White));
-
 
   std::vector<std::string> playlist_items = {"Home", "Recently Played",
                                              "Favorites", "CustomPlaylist"};
@@ -472,7 +477,6 @@ int main() {
         }
         return false;
       });
-
 
   // player callbacks
   player->set_state_callback([&] {
@@ -562,10 +566,10 @@ int main() {
 
   player->set_end_of_track_callback([&] {
     // Automatically update track info when a track ends
-    if(!next_tracks.empty()) {
-    /* current_track_index = player->get_current_playlist_index(); */
-    std::cerr << next_tracks.size() << std::endl;
-    current_track_index = (current_track_index + 1) % next_tracks.size();
+    if (!next_tracks.empty()) {
+      /* current_track_index = player->get_current_playlist_index(); */
+      std::cerr << next_tracks.size() << std::endl;
+      current_track_index = (current_track_index + 1) % next_tracks.size();
       current_track = next_tracks[current_track_index].name;
       current_artist = next_tracks[current_track_index].artist;
       player->next_track(next_tracks, current_track_index);
@@ -670,14 +674,14 @@ int main() {
             return true;
           }
 
-          if(event == Event::Character('.')){
-              player->skip_forward();
-              return true;
+          if (event == Event::Character('.')) {
+            player->skip_forward();
+            return true;
           }
 
-          if(event == Event::Character(',')){
-              player->skip_backward();
-              return true;
+          if (event == Event::Character(',')) {
+            player->skip_backward();
+            return true;
           }
         }
 
@@ -697,9 +701,9 @@ int main() {
         return false;
       });
 
-
   // Data Persistence
   loadData(recently_played, favorite_tracks);
+  std::vector<Element> smoe;
 
   // Layout
   auto renderer = Renderer(component, [&] {
@@ -768,8 +772,73 @@ int main() {
                     }),
                     separator(),
                     vbox({
-                        menu2->Render(),
-                    }),
+                         menu2->Render(),
+                            hbox({ 
+                        text(" Trend ")
+                        | bgcolor(Color::DeepPink1)
+                        | color(Color::White)
+                        | border
+                        | size(WIDTH, LESS_THAN, 30)
+                        }) | size(WIDTH, EQUAL, 10) | size(HEIGHT, EQUAL, 4),
+                    
+                    }) | size(WIDTH, EQUAL, 30) | size(HEIGHT, EQUAL, 22) |
+                       vscroll_indicator | yframe,
+
+
+        ////////////// EXPERIMENTING WITH THIS //////////////////////////////////
+                       /* vbox({ */
+        /* text("Trending") | bold | center, */
+        /* separator(), */
+        /* // Create chips for trending tracks */
+
+        /* vbox( */
+            /* ( */
+                /* trending_track_strings.begin(), */
+                /* trending_track_strings.end(), */
+                /* [](const auto& title) { */
+                    /* return hbox({ */
+                       /*  text(" " + title + " ") */
+                       /*  | bgcolor(Color::DeepPink1) */
+                       /*  | color(Color::White) */
+                       /*  | border */
+                       /*  | size(WIDTH, LESS_THAN, 30) */
+                    /* }); */
+                /* } */
+            /* ) */
+        /* ) | size(WIDTH, EQUAL, 30) | size(HEIGHT, EQUAL, 22) | vscroll_indicator | yframe */
+    /* }), */
+
+                    /* vbox({// Title section */
+                    /*       vbox({ */
+                    /*           filler(), */
+                    /*           hbox({ */
+                    /*               filler(), */
+                    /*               text(" Trending ") | */
+                    /*                   bgcolor(Color::DeepPink1) | */
+                    /*                   color(Color::White) | border, */
+                    /*               filler(), */
+                    /*           }), */
+                    /*           filler(), */
+                    /*       }) | size(HEIGHT, EQUAL, 3), */
+                    /*       separator(), */
+                    /*       // Trending tracks section */
+                    /*       vbox({vbox({ */
+                    /*                 hbox({ */
+                    /*                     // here add button with texts instead of */
+                    /*                     // just normal text. */
+                    /*                     text("▶") | bgcolor(Color::DeepPink1) | */
+                    /*                         color(Color::White), */
+                    /*                     vbox({ */
+                    /*                         text("Title") | bold | */
+                    /*                             color(Color::White), */
+                    /*                         text("Artist") | dim, */
+                    /*                     }) | flex, */
+                    /*                 }), */
+                    /*             }) | */
+                    /*             bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | */
+                    /*             size(HEIGHT, EQUAL, 5)}) | */
+                    /*           vscroll_indicator | yframe | flex}), */
+
                 }),
                 // text("Subtitles: " + current_subtitle_text) |
                 // color(Color::Blue),
