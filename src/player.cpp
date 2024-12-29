@@ -164,7 +164,7 @@ public:
     current_track_data = track_data;
     current_track_index = current_index;
 
-    current_index = (current_index + 1) % track_data.size();
+    current_index = (current_index) % track_data.size();
     play(track_data[current_index].url);
   }
 
@@ -277,6 +277,18 @@ public:
     mpv_command_async(mpv.get(), 0, cmd);
   }
 
+  void skip_forward() {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    const char *cmd[] = {"seek", "5", "relative", NULL};
+    mpv_command_async(mpv.get(), 0, cmd);
+  }
+
+  void skip_backward() {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    const char *cmd[] = {"seek", "-5", "relative", NULL};
+    mpv_command_async(mpv.get(), 0, cmd);
+  }
+
   void stop() {
     std::lock_guard<std::mutex> lock(player_mutex);
     const char *cmd[] = {"stop", NULL};
@@ -301,6 +313,19 @@ public:
       mpv_command(mpv.get(), cmd);
     }
   }
+
+  void toggle_repeat() {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    const char *cmd[] = {"cycle", "repeat", NULL};
+    mpv_command_async(mpv.get(), 0, cmd);
+  }
+
+  int get_current_playlist_index() const {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    return current_playlist_index;
+  }
+
+
 
   // Callback setters
   // void
@@ -389,6 +414,9 @@ private:
 
   void handle_end_file(mpv_event_end_file *prop) {
     if (prop->reason == MPV_END_FILE_REASON_EOF) {
+      if (on_end_of_track_callback) {
+        on_end_of_track_callback();
+      }
       next_track();
     }
   }

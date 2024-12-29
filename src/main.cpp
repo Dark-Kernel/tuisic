@@ -1,4 +1,5 @@
 #include "ftxui/dom/elements.hpp"
+#include <cstdlib>
 #include <curl/curl.h>
 #include <curl/urlapi.h>
 #include <exception>
@@ -237,7 +238,7 @@ int main() {
               player->stop();
             }
             /* player->stop(); */
-            player->play(track_data[selected].url);
+            /* player->play(track_data[selected].url); */
             recently_played.push_back(track_data[selected]);
             current_track = track_data[selected].name;
             current_artist = track_data[selected].artist;
@@ -251,19 +252,22 @@ int main() {
                   std::cerr << "Fetttgiing nextttttttttttttt";
                   next_tracks =
                       saavn.fetch_next_tracks(track_data[selected].id);
-                  /* next_tracks.insert(next_tracks.begin(),
-                   * track_data[selected]); */
                   std::vector<std::string> next_track_urls;
+                  next_track_urls.push_back(track_data[selected].url);
                   for (const auto &track : next_tracks) {
                     next_track_urls.push_back(track.url);
                   }
+                  next_tracks.insert(next_tracks.begin(), track_data[selected]); 
+                  
 
-                  /* { */
-                  /* std::lock_guard<std::mutex> lock(playlist_mutex); */
-                  /* next_playlist = next_track_urls; */
-                  /* } */
+                  {
+                  std::lock_guard<std::mutex> lock(playlist_mutex);
+                  next_playlist = next_track_urls;
+                  }
                   player->create_playlist(next_track_urls);
-
+                  current_track_index = 0;
+                  player->play(next_tracks[0].url);
+                  screen.PostEvent(Event::Custom);
                 } catch (const std::exception &e) {
                   std::cerr << e.what() << std::endl;
                 }
@@ -558,7 +562,14 @@ int main() {
 
   player->set_end_of_track_callback([&] {
     // Automatically update track info when a track ends
-    if (!track_data_forestfm.empty()) {
+    if(!next_tracks.empty()) {
+    /* current_track_index = player->get_current_playlist_index(); */
+    std::cerr << next_tracks.size() << std::endl;
+    current_track_index = (current_track_index + 1) % next_tracks.size();
+      current_track = next_tracks[current_track_index].name;
+      current_artist = next_tracks[current_track_index].artist;
+      player->next_track(next_tracks, current_track_index);
+    } else if (!track_data_forestfm.empty()) {
       current_track_index =
           (current_track_index + 1) % track_data_forestfm.size();
       current_track = track_data_forestfm[current_track_index].name;
@@ -573,7 +584,7 @@ int main() {
     screen.PostEvent(Event::Custom);
 
     // Continue playback
-    player->next_track(track_data, selected);
+    /* player->next_track(track_data, selected); */
   });
 
   // Component tree
@@ -657,6 +668,16 @@ int main() {
             }
             screen.PostEvent(Event::Custom);
             return true;
+          }
+
+          if(event == Event::Character('.')){
+              player->skip_forward();
+              return true;
+          }
+
+          if(event == Event::Character(',')){
+              player->skip_backward();
+              return true;
           }
         }
 
@@ -783,7 +804,7 @@ int main() {
                   text("⌨️ ") | dim,
                   text("Space:Play ") | dim,
                   text("↑/↓:Navigate ") | dim,
-                  text("+/-:Volume ") | dim,
+                  text("./,:Skip ") | dim,
                   text("S:Shuffle ") | dim,
               }) | center,
               text(fmt::format(" {} Tracks ",
