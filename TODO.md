@@ -1,10 +1,9 @@
 ## Something is still missing.
 
-- More Audio sources
-[x] Saavn
-[ ] YouTube Music
+- [X] Saavn
+- [ ] YouTube Music
 
-- Music visualizer ( maybe using cavacore )
-- Include Cover image in ascii
-- Multi souce lyrics
-- Auto Play next song.
+- [ ] Music visualizer ( maybe using cavacore )
+- [ ] Include Cover image in ascii
+- [ ] Multi souce lyrics
+- [X] Auto Play next song.

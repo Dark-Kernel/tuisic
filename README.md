@@ -15,7 +15,7 @@ It fetches songs from some platforms:
 
 ## Dependencies 
 ```sh
-sudo pacman -S curl mpv
+sudo pacman -S curl mpv fmt yt-dlp
 ```
 
 ## 

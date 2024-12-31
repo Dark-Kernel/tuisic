@@ -3,15 +3,12 @@
 #include "Track.h"
 #include <algorithm>
 #include <atomic>
-#include <condition_variable>
 #include <cstring>
-#include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <mpv/client.h>
 #include <mutex>
-#include <queue>
 #include <random>
 #include <thread>
 
@@ -72,7 +69,8 @@ public:
     // Configure MPV options
     const std::vector<std::pair<const char *, const char *>> mpv_options = {
         {"video", "no"},  {"audio-display", "no"}, {"terminal", "no"},
-        {"quiet", "yes"}, {"sub-auto", "fuzzy"},   {"sub-codepage", "UTF-8"}};
+        {"quiet", "yes"}, {"sub-auto", "fuzzy"},   {"sub-codepage", "UTF-8"}
+    };
 
     for (const auto &[option, value] : mpv_options) {
       if (mpv_set_option_string(mpv.get(), option, value) < 0) {
@@ -106,17 +104,6 @@ public:
   }
 
   // Subtitle management methods
-  // void update_subtitle(const char *new_subtitle) {
-  //   current_subtitle = new_subtitle ? new_subtitle : "";
-  //   // current_subtitle = new_subtitle ? std::string(new_subtitle) : "";
-  //   // std::cerr << "Subtitle updated: " << current_subtitle << std::endl;
-  //   // std::cerr.imbue(std::locale("en_US.UTF-8"));
-
-  //   if (on_subtitle_change) {
-  //     on_subtitle_change(current_subtitle);
-  //   }
-  // }
-
   void update_subtitle(const char *new_subtitle) {
     std::lock_guard<std::mutex> lock(player_mutex); // Thread-safe update
     current_subtitle = new_subtitle ? new_subtitle : "";
@@ -135,7 +122,6 @@ public:
     mpv_command_async(mpv.get(), 0, cmd);
   }
 
-  // std::string get_current_subtitle() const { return current_subtitle; }
   std::string get_current_subtitle() const {
     std::lock_guard<std::mutex> lock(player_mutex);
     return current_subtitle;
@@ -163,20 +149,16 @@ public:
     // Update track data and current track index
     current_track_data = track_data;
     current_track_index = current_index;
-
     current_index = (current_index) % track_data.size();
     play(track_data[current_index].url);
   }
 
-  // Playlist management methods
   void create_playlist(const std::vector<std::string> &urls) {
     std::lock_guard<std::mutex> lock(player_mutex);
-
     if (urls.empty()) {
       log_error("No URLs provided for playlist");
       return;
     }
-
     // Clear and swap playlist
     playlist.clear();
     // playlist.swap(const_cast<std::vector<std::string> &>(urls));
@@ -184,7 +166,6 @@ public:
     playlist = urls;
     mpv_command_string(mpv.get(), "playlist-clear");
     if (!playlist.empty()) {
-
       const char *cmd[] = {"loadfile", playlist[0].c_str(), NULL};
       int result = mpv_command(mpv.get(), cmd);
       if (result < 0) {
@@ -193,12 +174,6 @@ public:
         return;
       }
     }
-
-    // Load playlist
-    // for (const auto &url : playlist) {
-    //   const char *cmd[] = {"loadfile", url.c_str(), "append", NULL};
-    //   mpv_command(mpv.get(), cmd);
-    // }
   }
 
   void shuffle_playlist() {
@@ -218,13 +193,11 @@ public:
     if (current_playlist_index == -1) {
       current_playlist_index = 0;
     }
-
     play(playlist[current_playlist_index]);
   }
 
   void next_track() {
     std::lock_guard<std::mutex> lock(player_mutex);
-
     if (playlist.empty())
       return;
 
@@ -293,7 +266,6 @@ public:
     std::lock_guard<std::mutex> lock(player_mutex);
     const char *cmd[] = {"stop", NULL};
     mpv_command_async(mpv.get(), 0, cmd);
-
     is_loaded = false;
     is_playing = false;
     is_paused = false;
@@ -302,10 +274,7 @@ public:
 
   void on_track_end() {
     std::lock_guard<std::mutex> lock(player_mutex);
-
-    // Move to next track in playlist
     current_playlist_index++;
-
     if (current_playlist_index < playlist.size()) {
       // Play next track
       const char *cmd[] = {"loadfile", playlist[current_playlist_index].c_str(),
@@ -328,12 +297,8 @@ public:
 
 
   // Callback setters
-  // void
-  // set_subtitle_callback(std::function<void(const std::string &)> callback) {
-  //   on_subtitle_change = std::move(callback);
-  // }
-  void
-  set_subtitle_callback(std::function<void(const std::string &)> callback) {
+
+  void set_subtitle_callback(std::function<void(const std::string &)> callback) {
     if (!callback) {
       log_error("Invalid subtitle callback provided.");
       return;
@@ -431,7 +396,6 @@ private:
   }
 
 public:
-  // Getters
   bool is_playing_state() const { return is_loaded && !is_paused; }
   double get_position() const { return current_position; }
   double get_duration() const { return duration; }
