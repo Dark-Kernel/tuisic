@@ -214,11 +214,30 @@ int main() {
   // Volume control
   int volume = 100;
 
-  ///////////// NEED TO FIX IN RAPIDJSON EXTRATION /////////////
+  std::vector<Element> trending_elements;
+  std::thread trending_thread([&]() {
   trending_tracks = saavn.fetch_trending();
   for (const auto &track : trending_tracks) {
     trending_track_strings.push_back(track.name);
   }
+
+  for (const auto &track : trending_tracks) {
+    trending_elements.push_back(
+        vbox({
+            hbox({vbox({
+                      text(track.name) | bold | color(Color::White),
+                      text(track.artist) | dim,
+                  }) | flex,
+                  text(" ▶ ") | 
+                      color(Color::White) | border}),
+        }) |
+        bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL, 5));
+  }
+});
+trending_thread.detach();
+
+            screen.PostEvent(Event::Custom);
+
 
   // Components
   Component input_search = Input(&search_query, "Search for music...");
@@ -705,19 +724,6 @@ int main() {
   loadData(recently_played, favorite_tracks);
   std::vector<Element> smoe;
 
-  std::vector<Element> trending_elements;
-  for (const auto &track : trending_tracks) {
-    trending_elements.push_back(
-        vbox({
-            hbox({vbox({
-                      text(track.name) | bold | color(Color::White),
-                      text(track.artist) | dim,
-                  }) | flex,
-                  text(" ▶ ") | 
-                      color(Color::White) | border}),
-        }) |
-        bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL, 5));
-  }
 
   // Layout
   auto renderer = Renderer(component, [&] {
