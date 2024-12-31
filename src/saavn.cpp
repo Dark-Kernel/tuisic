@@ -26,7 +26,20 @@ class Saavn {
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["primary_artists"][0]["name"].GetString();
                 tracks.push_back(track);
+            }
+            return tracks;
+        }
 
+        std::vector<Track> extractTrendingTracks(const std::string &json) {
+            std::vector<Track> tracks;
+            rapidjson::Document doc;
+            doc.Parse(json.c_str());
+            for(const auto &result : doc.GetArray()){
+                Track track;
+                track.name = result["title"].GetString();
+                track.url = result["perma_url"].GetString();
+                track.artist = result["more_info"]["artistMap"]["artists"][0]["name"].GetString();
+                tracks.push_back(track);
             }
             return tracks;
         }
@@ -116,9 +129,9 @@ class Saavn {
         }
 
         std::vector<Track> fetch_trending() {
-            std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=song&entity_language=english";
+            std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=album&entity_language=english";
             std::string readBuffer = make_request(url);
-            return extractTracks(readBuffer);
+            return extractTrendingTracks(readBuffer);
         }
 
         std::vector<Track> fetch_next_tracks(std::string id) {

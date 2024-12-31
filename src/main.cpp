@@ -215,10 +215,10 @@ int main() {
   int volume = 100;
 
   ///////////// NEED TO FIX IN RAPIDJSON EXTRATION /////////////
-  /* trending_tracks = saavn.fetch_trending(); */
-  /* for (const auto &track : trending_tracks) { */
-  /*   trending_track_strings.push_back(track.name); */
-  /* } */
+  trending_tracks = saavn.fetch_trending();
+  for (const auto &track : trending_tracks) {
+    trending_track_strings.push_back(track.name);
+  }
 
   // Components
   Component input_search = Input(&search_query, "Search for music...");
@@ -705,6 +705,20 @@ int main() {
   loadData(recently_played, favorite_tracks);
   std::vector<Element> smoe;
 
+  std::vector<Element> trending_elements;
+  for (const auto &track : trending_tracks) {
+    trending_elements.push_back(
+        vbox({
+            hbox({vbox({
+                      text(track.name) | bold | color(Color::White),
+                      text(track.artist) | dim,
+                  }) | flex,
+                  text(" ▶ ") | 
+                      color(Color::White) | border}),
+        }) |
+        bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL, 5));
+  }
+
   // Layout
   auto renderer = Renderer(component, [&] {
     return vbox({
@@ -771,75 +785,25 @@ int main() {
                             size(WIDTH, EQUAL, 90),
                     }),
                     separator(),
+                    /* vbox({ */
+                    /*      menu2->Render(), */
+                    /* }), */
+
                     vbox({
-                         menu2->Render(),
-                            hbox({ 
-                        text(" Trend ")
-                        | bgcolor(Color::DeepPink1)
-                        | color(Color::White)
-                        | border
-                        | size(WIDTH, LESS_THAN, 30)
-                        }) | size(WIDTH, EQUAL, 10) | size(HEIGHT, EQUAL, 4),
-                    
-                    }) | size(WIDTH, EQUAL, 30) | size(HEIGHT, EQUAL, 22) |
-                       vscroll_indicator | yframe,
+                          vbox({
+                              hbox({
+                                  filler(),
+                                  text(" Trendings ") | bold |
+                                      color(Color::White),
+                                  filler(),
+                              }),
+                          }) | size(HEIGHT, LESS_THAN, 2),
+                        separator(),
+                        vbox(trending_elements)
 
-
-        ////////////// EXPERIMENTING WITH THIS //////////////////////////////////
-                       /* vbox({ */
-        /* text("Trending") | bold | center, */
-        /* separator(), */
-        /* // Create chips for trending tracks */
-
-        /* vbox( */
-            /* ( */
-                /* trending_track_strings.begin(), */
-                /* trending_track_strings.end(), */
-                /* [](const auto& title) { */
-                    /* return hbox({ */
-                       /*  text(" " + title + " ") */
-                       /*  | bgcolor(Color::DeepPink1) */
-                       /*  | color(Color::White) */
-                       /*  | border */
-                       /*  | size(WIDTH, LESS_THAN, 30) */
-                    /* }); */
-                /* } */
-            /* ) */
-        /* ) | size(WIDTH, EQUAL, 30) | size(HEIGHT, EQUAL, 22) | vscroll_indicator | yframe */
-    /* }), */
-
-                    /* vbox({// Title section */
-                    /*       vbox({ */
-                    /*           filler(), */
-                    /*           hbox({ */
-                    /*               filler(), */
-                    /*               text(" Trending ") | */
-                    /*                   bgcolor(Color::DeepPink1) | */
-                    /*                   color(Color::White) | border, */
-                    /*               filler(), */
-                    /*           }), */
-                    /*           filler(), */
-                    /*       }) | size(HEIGHT, EQUAL, 3), */
-                    /*       separator(), */
-                    /*       // Trending tracks section */
-                    /*       vbox({vbox({ */
-                    /*                 hbox({ */
-                    /*                     // here add button with texts instead of */
-                    /*                     // just normal text. */
-                    /*                     text("▶") | bgcolor(Color::DeepPink1) | */
-                    /*                         color(Color::White), */
-                    /*                     vbox({ */
-                    /*                         text("Title") | bold | */
-                    /*                             color(Color::White), */
-                    /*                         text("Artist") | dim, */
-                    /*                     }) | flex, */
-                    /*                 }), */
-                    /*             }) | */
-                    /*             bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | */
-                    /*             size(HEIGHT, EQUAL, 5)}) | */
-                    /*           vscroll_indicator | yframe | flex}), */
-
+                    }) | vscroll_indicator | yframe | flex | size(HEIGHT, EQUAL, 22)
                 }),
+
                 // text("Subtitles: " + current_subtitle_text) |
                 // color(Color::Blue),
                 ////////////////////// Working subtitles
@@ -849,6 +813,7 @@ int main() {
                  */
                 /*     text(current_subtitle_text), */
                 /* }), */
+
                 separator(),
             }) | flex,
         }),
