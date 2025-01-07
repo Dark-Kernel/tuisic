@@ -185,6 +185,8 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 }
 
 int main() {
+        curl_global_init(CURL_GLOBAL_ALL);
+
 
   using namespace ftxui;
 
@@ -216,28 +218,25 @@ int main() {
 
   std::vector<Element> trending_elements;
   std::thread trending_thread([&]() {
-  trending_tracks = saavn.fetch_trending();
-  for (const auto &track : trending_tracks) {
-    trending_track_strings.push_back(track.name);
-  }
+    trending_tracks = saavn.fetch_trending();
+    for (const auto &track : trending_tracks) {
+      trending_track_strings.push_back(track.name);
+    }
 
-  for (const auto &track : trending_tracks) {
-    trending_elements.push_back(
-        vbox({
-            hbox({vbox({
-                      text(track.name) | bold | color(Color::White),
-                      text(track.artist) | dim,
-                  }) | flex,
-                  text(" ▶ ") | 
-                      color(Color::White) | border}),
-        }) |
-        bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL, 5));
-  }
-});
-trending_thread.detach();
-
-            screen.PostEvent(Event::Custom);
-
+    for (const auto &track : trending_tracks) {
+      trending_elements.push_back(
+          vbox({
+              hbox({vbox({
+                        text(track.name) | bold | color(Color::White),
+                        text(track.artist) | dim,
+                    }) | flex,
+                    text(" ▶ ") | color(Color::White) | border}),
+          }) |
+          bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL, 5));
+    }
+    screen.PostEvent(Event::Custom);
+  });
+  trending_thread.detach();
 
   // Components
   Component input_search = Input(&search_query, "Search for music...");
@@ -329,12 +328,38 @@ trending_thread.detach();
           std::cerr << "pressed L" << std::endl;
           player->toggle_subtitles();
         }
+
         if (event == Event::Character('a')) {
           if (selected >= 0 && selected < track_data.size()) {
             if (!isFavorite(track_data[selected].name)) {
               favorite_tracks.push_back(track_data[selected]);
             }
           }
+        }
+
+        if (event == Event::Character('d')) {
+          if (selected >= 0 && selected < track_data.size()) {
+
+            std::string output_path = track_data[selected].name + ".mp3";
+            std::replace(output_path.begin(), output_path.end(), '/', '_');
+            std::replace(output_path.begin(), output_path.end(), '\\', '_');
+
+            // Start download
+            if (player->download_track(track_data[selected].url, output_path)) {
+              system(("notify-send \"Started downloading: " +
+                      track_data[selected].name + "\"")
+                         .c_str());
+            } else {
+              system(("notify-send \"Failed to start download: " +
+                      track_data[selected].name + "\"")
+                         .c_str());
+            }
+          }
+          return true;
+        }
+        
+        if(event == Event::Character('r')) {
+            player->toggle_repeat();
         }
 
         return false;
@@ -625,6 +650,25 @@ trending_thread.detach();
               input_search,
               menu,
               menu2,
+              Container::Horizontal({
+                  Container::Vertical({
+                      menu | frame | size(HEIGHT, EQUAL, 22) |
+                          size(WIDTH, EQUAL, 90),
+                  }),
+                  Container::Vertical({Renderer([&] {
+                    return vbox({vbox({
+                                     hbox({
+                                         filler(),
+                                         text(" Trendings ") | bold |
+                                             color(Color::White),
+                                         filler(),
+                                     }),
+                                 }) | size(HEIGHT, LESS_THAN, 2),
+                                 separator(), vbox(trending_elements)}) |
+                           vscroll_indicator | yframe | flex |
+                           size(HEIGHT, EQUAL, 22);
+                  })}),
+              }),
           }),
 
           Container::Vertical({
@@ -702,6 +746,8 @@ trending_thread.detach();
             player->skip_backward();
             return true;
           }
+
+          // endof else
         }
 
         // Global quit shortcut
@@ -723,7 +769,6 @@ trending_thread.detach();
   // Data Persistence
   loadData(recently_played, favorite_tracks);
   std::vector<Element> smoe;
-
 
   // Layout
   auto renderer = Renderer(component, [&] {
@@ -785,30 +830,27 @@ trending_thread.detach();
                 separator(),
                 text("Available Tracks:") | bold,
                 /* menu->Render() | frame | flex, */
-                hbox({
-                    vbox({
-                        menu->Render() | frame | size(HEIGHT, EQUAL, 22) |
-                            size(WIDTH, EQUAL, 90),
-                    }),
-                    separator(),
-                    /* vbox({ */
-                    /*      menu2->Render(), */
-                    /* }), */
+                hbox({vbox({
+                          menu->Render() | frame | size(HEIGHT, EQUAL, 22) |
+                              size(WIDTH, EQUAL, 90),
+                      }),
+                      separator(),
+                      /* vbox({ */
+                      /*      menu2->Render(), */
+                      /* }), */
 
-                    vbox({
-                          vbox({
-                              hbox({
-                                  filler(),
-                                  text(" Trendings ") | bold |
-                                      color(Color::White),
-                                  filler(),
-                              }),
-                          }) | size(HEIGHT, LESS_THAN, 2),
-                        separator(),
-                        vbox(trending_elements)
+                      vbox({vbox({
+                                hbox({
+                                    filler(),
+                                    text(" Trendings ") | bold |
+                                        color(Color::White),
+                                    filler(),
+                                }),
+                            }) | size(HEIGHT, LESS_THAN, 2),
+                            separator(), vbox(trending_elements)
 
-                    }) | vscroll_indicator | yframe | flex | size(HEIGHT, EQUAL, 22)
-                }),
+                      }) | vscroll_indicator |
+                          yframe | flex | size(HEIGHT, EQUAL, 22)}),
 
                 // text("Subtitles: " + current_subtitle_text) |
                 // color(Color::Blue),
