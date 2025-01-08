@@ -309,7 +309,8 @@ int main() {
         // press l on selected to copy url
         if (event == Event::AltL) {
           if (selected >= 0 && selected < track_data.size()) {
-            std::string url = track_data[selected].url;
+            /* std::string url = track_data[selected].url; */
+            std::string url = player->get_current_track();
             std::string is_wayland = getenv("XDG_SESSION_TYPE");
             if (is_wayland == "wayland") {
               system(("echo \"" + url + "\" | wl-copy").c_str());

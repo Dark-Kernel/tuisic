@@ -255,6 +255,11 @@ public:
     }
   }
 
+  std::string get_current_track() const {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    return current_url;
+  }
+
   void seek(double position) {
     std::lock_guard<std::mutex> lock(player_mutex);
     std::string pos = std::to_string(position);
