@@ -341,12 +341,15 @@ int main() {
         if (event == Event::Character('d')) {
           if (selected >= 0 && selected < track_data.size()) {
 
-            std::string output_path = track_data[selected].name + ".mp3";
-            std::replace(output_path.begin(), output_path.end(), '/', '_');
-            std::replace(output_path.begin(), output_path.end(), '\\', '_');
+            /* std::string output_path = track_data[selected].name + ".mp3"; */
+            std::string current_song = player->get_current_track();
+            std::replace(current_song.begin(), current_song.end(), '/', '_');
+            std::replace(current_song.begin(), current_song.end(), '\\', '_');
+            std::string final_path = "/home/dk/Music/" + current_song + ".mp3";
+
 
             // Start download
-            if (player->download_track(track_data[selected].url, output_path)) {
+            if (player->download_track(track_data[selected].url, final_path)) {
               system(("notify-send \"Started downloading: " +
                       track_data[selected].name + "\"")
                          .c_str());

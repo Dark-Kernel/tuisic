@@ -1,10 +1,10 @@
 #pragma once
 
-#include <curl/curl.h>
 #include "Track.h"
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <curl/curl.h>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -59,16 +59,18 @@ private:
     std::cerr << "[MusicPlayer Error] " << message << std::endl;
   }
 
-      static size_t write_callback(void* ptr, size_t size, size_t nmemb, FILE* stream) {
-        return fwrite(ptr, size, nmemb, stream);
-    }
+  static size_t write_callback(void *ptr, size_t size, size_t nmemb,
+                               FILE *stream) {
+    return fwrite(ptr, size, nmemb, stream);
+  }
 
-    // Progress callback
-    static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, 
-                               curl_off_t ultotal, curl_off_t ulnow) {
-        // You can add progress tracking here if needed
-        return 0; // Return non-zero to abort transfer
-    }
+  // Progress callback
+  static int progress_callback(void *clientp, curl_off_t dltotal,
+                               curl_off_t dlnow, curl_off_t ultotal,
+                               curl_off_t ulnow) {
+    // You can add progress tracking here if needed
+    return 0; // Return non-zero to abort transfer
+  }
 
 public:
   MusicPlayer() {
@@ -289,78 +291,51 @@ public:
     current_playlist_index = -1;
   }
 
+  bool download_track(const std::string &url, const std::string &output_path) {
+    std::lock_guard<std::mutex> lock(player_mutex);
 
-      bool download_track(const std::string& url, const std::string& output_path) {
-        std::lock_guard<std::mutex> lock(player_mutex);
-        
-        if (is_downloading) {
-            log_error("Already another download in progress");
-            return false;
+    if (is_downloading) {
+      log_error("Already another download in progress");
+      return false;
+    }
+
+    // Start download in a separate thread
+    std::thread download_thread([this, url, output_path]() {
+      is_downloading = true;
+
+      try {
+        // Construct yt-dlp command
+        // -x: Extract audio
+        // --audio-format mp3: Convert to MP3
+        // -o: Output template
+        std::string command = "yt-dlp -x --audio-format mp3 -o \"" +
+                              output_path + "\" \"" + url + "\"";
+
+        // Execute the command
+        int result = system(command.c_str());
+
+        if (result != 0) {
+          throw std::runtime_error("yt-dlp failed to download the track");
         }
 
-        // Start download in a separate thread
-        std::thread download_thread([this, url, output_path]() {
-            is_downloading = true;
-            
-            CURL* curl = curl_easy_init();
-            FILE* fp = nullptr;
-            bool success = false;
+        // Notify completion
+        system(("notify-send \"Download completed: " + output_path + "\"")
+                   .c_str());
 
-            try {
-                if (!curl) {
-                    throw std::runtime_error("Failed to initialize CURL");
-                }
+      } catch (const std::exception &e) {
+        log_error(e.what());
+        system(
+            ("notify-send \"Download failed: " + std::string(e.what()) + "\"")
+                .c_str());
+      }
 
-                fp = fopen(output_path.c_str(), "wb");
-                if (!fp) {
-                    throw std::runtime_error("Failed to open output file");
-                }
+      is_downloading = false;
+    });
 
-                // Configure CURL
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-                curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-                curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
-                curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-                
-                // Add headers to mimic browser request
-                struct curl_slist* headers = nullptr;
-                headers = curl_slist_append(headers, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    download_thread.detach();
 
-                // Perform the download
-                CURLcode res = curl_easy_perform(curl);
-                
-                if (res != CURLE_OK) {
-                    throw std::runtime_error(std::string("Download failed: ") + 
-                                          curl_easy_strerror(res));
-                }
-
-                success = true;
-                
-                // Cleanup
-                curl_slist_free_all(headers);
-                curl_easy_cleanup(curl);
-                fclose(fp);
-                
-                // Notify completion
-                system(("notify-send \"Download completed: " + output_path + "\"").c_str());
-
-            } catch (const std::exception& e) {
-                // Handle errors
-                if (curl) curl_easy_cleanup(curl);
-                if (fp) fclose(fp);
-                log_error(e.what());
-                system(("notify-send \"Download failed: " + std::string(e.what()) + "\"").c_str());
-            }
-
-            is_downloading = false;
-        });
-
-        download_thread.detach();
-        return true;
-    }
+    return true;
+  }
 
   bool is_download_in_progress() const { return is_downloading; }
 
