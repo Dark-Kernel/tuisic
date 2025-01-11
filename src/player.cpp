@@ -299,9 +299,13 @@ public:
     current_playlist_index = -1;
   }
 
-  bool download_track(const std::string &url, const std::string &filename) {
+  bool download_track(const std::string &url, const std::string path, const std::string &filename) {
     std::lock_guard<std::mutex> lock(player_mutex);
-    std::string final_path = config->get_download_path() + "/" + filename;
+    /* std::string final_path = config->get_download_path(); */
+
+    std::string final_path = path + "/" + filename;
+    /* std::string final_path = "/home/dk/Music/" + filename; */
+
 
     if (is_downloading) {
       log_error("Already another download in progress");
@@ -317,12 +321,12 @@ public:
         // -x: Extract audio
         // --audio-format mp3: Convert to MP3
         // -o: Output template
-        /* std::string command = "yt-dlp -x --audio-format mp3 -o \"" + */
-        /*                       final_path + "\" \"" + url + "\""; */
+        std::string command = "yt-dlp -x --audio-format mp3 -o \"" +
+                              final_path + "\" \"" + url + "\"";
 
-        std::string command =
-            fmt::format("yt-dlp -x --audio-format {} -o \"{}\" \"{}\"",
-                        config->get_download_format(), final_path, url);
+        /* std::string command = */
+        /*     fmt::format("yt-dlp -x --audio-format {} -o \"{}\" \"{}\"", */
+        /*                 config->get_download_format(), final_path, url); */
 
         // Execute the command
         int result = system(command.c_str());

@@ -256,7 +256,7 @@ auto config = std::make_shared<Config>();
   auto menu = Menu(&tracks, &selected);
   menu =
       Menu(&tracks, &selected) |
-      CatchEvent([&button_text, &next_playlist, &playlist_mutex](Event event) {
+      CatchEvent([&button_text, &next_playlist, &playlist_mutex, &config](Event event) {
         if (event == Event::Return) {
           std::cerr << "Selected: " << selected << std::endl;
           if (selected >= 0 && selected < track_data.size()) {
@@ -276,7 +276,7 @@ auto config = std::make_shared<Config>();
 
               std::thread next_tracks_thread([&]() {
                 try {
-                  std::cerr << "Fetttgiing nextttttttttttttt";
+                  /* std::cerr << "Fetttgiing nextttttttttttttt"; */
                   next_tracks =
                       saavn.fetch_next_tracks(track_data[selected].id);
                   std::vector<std::string> next_track_urls;
@@ -341,16 +341,16 @@ auto config = std::make_shared<Config>();
 
         if (event == Event::Character('d')) {
           if (selected >= 0 && selected < track_data.size()) {
-
-            /* std::string output_path = track_data[selected].name + ".mp3"; */
-            std::string current_song = player->get_current_track();
+            std::string current_song = track_data[selected].name + ".mp3";
+            /* std::string current_song = player->get_current_track(); */
             std::replace(current_song.begin(), current_song.end(), '/', '_');
             std::replace(current_song.begin(), current_song.end(), '\\', '_');
-            std::string final_path = "/home/dk/Music/" + current_song + ".mp3";
+            /* std::string final_path = "/home/dk/Music/" + current_song + ".mp3"; */
+            std::string path = config->get_download_path();
 
 
             // Start download
-            if (player->download_track(track_data[selected].url, final_path)) {
+            if (player->download_track(track_data[selected].url, path, current_song)) {
               system(("notify-send \"Started downloading: " +
                       track_data[selected].name + "\"")
                          .c_str());
@@ -361,6 +361,10 @@ auto config = std::make_shared<Config>();
             }
           }
           return true;
+        }
+        if(event == Event::Character('p')) {
+            std::string some = config->get_download_path();
+            system(("notify-send \"Download path: " + some + "\"").c_str());
         }
         
         if(event == Event::Character('r')) {
