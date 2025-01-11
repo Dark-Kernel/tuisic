@@ -185,7 +185,8 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 }
 
 int main() {
-        curl_global_init(CURL_GLOBAL_ALL);
+curl_global_init(CURL_GLOBAL_ALL);
+auto config = std::make_shared<Config>();
 
 
   using namespace ftxui;

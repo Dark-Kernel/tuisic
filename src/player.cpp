@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Track.h"
+#include "config.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstring>
 #include <curl/curl.h>
+#include <fmt/format.h>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -17,6 +19,7 @@ class MusicPlayer {
 private:
   // Smart pointer with custom deleter for mpv handle
   std::unique_ptr<mpv_handle, decltype(&mpv_destroy)> mpv{nullptr, mpv_destroy};
+  std::shared_ptr<Config> config;
 
   // Thread management with unique_ptr
   std::unique_ptr<std::thread> event_thread;
@@ -108,6 +111,11 @@ public:
     // Start event handling thread
     event_thread = std::make_unique<std::thread>([this] { event_loop(); });
   }
+
+  /* MusicPlayer(std::shared_ptr<Config> cfg) : config(cfg) { */
+  /*   set_volume(config->get_volume()); */
+
+  /* } */
 
   // Destructor with RAII principles
   ~MusicPlayer() {
@@ -291,8 +299,9 @@ public:
     current_playlist_index = -1;
   }
 
-  bool download_track(const std::string &url, const std::string &output_path) {
+  bool download_track(const std::string &url, const std::string &filename) {
     std::lock_guard<std::mutex> lock(player_mutex);
+    std::string final_path = config->get_download_path() + "/" + filename;
 
     if (is_downloading) {
       log_error("Already another download in progress");
@@ -300,7 +309,7 @@ public:
     }
 
     // Start download in a separate thread
-    std::thread download_thread([this, url, output_path]() {
+    std::thread download_thread([this, url, final_path]() {
       is_downloading = true;
 
       try {
@@ -308,8 +317,12 @@ public:
         // -x: Extract audio
         // --audio-format mp3: Convert to MP3
         // -o: Output template
-        std::string command = "yt-dlp -x --audio-format mp3 -o \"" +
-                              output_path + "\" \"" + url + "\"";
+        /* std::string command = "yt-dlp -x --audio-format mp3 -o \"" + */
+        /*                       final_path + "\" \"" + url + "\""; */
+
+        std::string command =
+            fmt::format("yt-dlp -x --audio-format {} -o \"{}\" \"{}\"",
+                        config->get_download_format(), final_path, url);
 
         // Execute the command
         int result = system(command.c_str());
@@ -319,8 +332,8 @@ public:
         }
 
         // Notify completion
-        system(("notify-send \"Download completed: " + output_path + "\"")
-                   .c_str());
+        system(
+            ("notify-send \"Download completed: " + final_path + "\"").c_str());
 
       } catch (const std::exception &e) {
         log_error(e.what());
