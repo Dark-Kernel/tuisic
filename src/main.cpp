@@ -409,7 +409,14 @@ int main() {
         return false;
       });
 
-  Component volume_slider = Slider("", &volume, 0, 100, 1);
+  Component volume_slider =
+      Slider("", &volume, 0, 100, 1) | CatchEvent([&](Event event) {
+        if (event == Event::Custom) {
+          player->set_volume(volume);
+          return true;
+        }
+        return false;
+      });
 
   auto play_button = Button(
       &button_text,
@@ -821,6 +828,32 @@ int main() {
             screen.PostEvent(Event::Custom);
           }
 
+          if (event == Event::Character('+') ||
+              event == Event::Character('=')) {
+            volume = std::min(100, volume + 5);
+            player->set_volume(volume);
+            screen.PostEvent(Event::Custom);
+            return true;
+          }
+          if (event == Event::Character('-')) {
+            volume = std::max(0, volume - 5);
+            player->set_volume(volume);
+            screen.PostEvent(Event::Custom);
+            return true;
+          }
+          if (event == Event::Character('m')) { // Mute toggle
+            static int previous_volume = 100;
+            if (volume > 0) {
+              previous_volume = volume;
+              volume = 0;
+            } else {
+              volume = previous_volume;
+            }
+            player->set_volume(volume);
+            screen.PostEvent(Event::Custom);
+            return true;
+          }
+
           // endof else
         }
 
@@ -894,6 +927,13 @@ int main() {
                     text("♪ ") | color(Color::Blue),
                     volume_slider->Render(),
                 }),
+                //////// Volume slider with % ////////////////////////////////////
+                // hbox({
+                //     text("🔊 ") | color(Color::Blue),
+                //     volume_slider->Render() | flex,
+                //     text(std::to_string(volume) + "%") | size(WIDTH, EQUAL, 4),
+                // }) | size(HEIGHT, EQUAL, 1),
+                /////////////////////////////////////////////////////////////////
             }) | size(WIDTH, EQUAL, 30) |
                 border,
             vbox({
@@ -957,7 +997,8 @@ int main() {
                   text("Space:Play ") | dim,
                   text("↑/↓:Navigate ") | dim,
                   text("./,:Skip ") | dim,
-                  text("S:Shuffle ") | dim,
+                  text(">/<:Next/Prev ") | dim,
+                  text("m:Mute ") | dim,
               }) | center,
               text(fmt::format(" {} Tracks ",
                                current_source == PlaylistSource::Search

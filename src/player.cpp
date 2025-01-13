@@ -378,6 +378,20 @@ public:
     return current_playlist_index;
   }
 
+
+  void set_volume(int volume) {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    int64_t mpv_volume = std::clamp(volume, 0, 100);
+    mpv_set_property_async(mpv.get(), 0, "volume", MPV_FORMAT_INT64, &mpv_volume);
+  }
+
+  int get_volume() const {
+        std::lock_guard<std::mutex> lock(player_mutex);
+        int64_t volume = 100;
+        mpv_get_property(mpv.get(), "volume", MPV_FORMAT_INT64, &volume);
+        return static_cast<int>(volume); 
+  }
+
   // Callback setters
 
   void
@@ -482,8 +496,4 @@ public:
   bool is_playing_state() const { return is_loaded && !is_paused; }
   double get_position() const { return current_position; }
   double get_duration() const { return duration; }
-  void set_volume(int volume) {
-    std::lock_guard<std::mutex> lock(player_mutex);
-    mpv_set_property_async(mpv.get(), 0, "volume", MPV_FORMAT_INT64, &volume);
-  }
 };
