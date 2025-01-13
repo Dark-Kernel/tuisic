@@ -656,7 +656,7 @@ int main() {
     // Automatically update track info when a track ends
     if (!next_tracks.empty()) {
       /* current_track_index = player->get_current_playlist_index(); */
-      std::cerr << next_tracks.size() << std::endl;
+      // std::cerr << next_tracks.size() << std::endl;
       current_track_index = (current_track_index + 1) % next_tracks.size();
       current_track = next_tracks[current_track_index].name;
       current_artist = next_tracks[current_track_index].artist;
@@ -692,10 +692,10 @@ int main() {
 
           Container::Vertical({
               input_search,
-                          Container::Horizontal({
-                menu,
-                trending_menu,
-            }) | flex,
+              Container::Horizontal({
+                  menu,
+                  trending_menu,
+              }) | flex,
               // menu,
               // trending_menu,
           }),
@@ -774,6 +774,51 @@ int main() {
           if (event == Event::Character(',')) {
             player->skip_backward();
             return true;
+          }
+
+          if (event == Event::Character('>')) { // Next track
+            if (!next_tracks.empty()) {
+              /* current_track_index = player->get_current_playlist_index(); */
+              // std::cerr << next_tracks.size() << std::endl;
+              current_track_index =
+                  (current_track_index + 1) % next_tracks.size();
+              current_track = next_tracks[current_track_index].name;
+              current_artist = next_tracks[current_track_index].artist;
+              player->next_track(next_tracks, current_track_index);
+            } else if (!track_data_forestfm.empty()) {
+              current_track_index =
+                  (current_track_index + 1) % track_data_forestfm.size();
+              current_track = track_data_forestfm[current_track_index].name;
+              current_artist = track_data_forestfm[current_track_index].artist;
+            } else if (!track_data.empty()) {
+              selected = (selected + 1) % track_data.size();
+              current_track = track_data[selected].name;
+              current_artist = track_data[selected].artist;
+            }
+
+            // Ensure UI updates
+            screen.PostEvent(Event::Custom);
+          }
+          if (event == Event::Character('<')) { // Previous track
+            if (!next_tracks.empty()) {
+              /* current_track_index = player->get_current_playlist_index(); */
+              // std::cerr << next_tracks.size() << std::endl;
+              current_track_index =
+                  (current_track_index - 1) % next_tracks.size();
+              current_track = next_tracks[current_track_index].name;
+              current_artist = next_tracks[current_track_index].artist;
+              player->next_track(next_tracks, current_track_index);
+            } else if (!track_data_forestfm.empty()) {
+              current_track_index =
+                  (current_track_index - 1) % track_data_forestfm.size();
+              current_track = track_data_forestfm[current_track_index].name;
+              current_artist = track_data_forestfm[current_track_index].artist;
+            } else if (!track_data.empty()) {
+              selected = (selected - 1) % track_data.size();
+              current_track = track_data[selected].name;
+              current_artist = track_data[selected].artist;
+            }
+            screen.PostEvent(Event::Custom);
           }
 
           // endof else
@@ -875,8 +920,7 @@ int main() {
                            }),
                            separator(), trending_menu->Render() | frame}) |
                          vscroll_indicator | yframe | flex |
-                         size(HEIGHT, EQUAL, 22)
-                    }),
+                         size(HEIGHT, EQUAL, 22)}),
 
                 // text("Subtitles: " + current_subtitle_text) |
                 // color(Color::Blue),
