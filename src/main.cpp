@@ -46,6 +46,8 @@ std::string current_artist = "Welcome back, User!";
 // Playlist track index
 int current_track_index = 0;
 
+int selected_trending = 0;
+
 // Sources
 Lastfm lastfm;
 SoundCloud soundcloud;
@@ -185,9 +187,8 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 }
 
 int main() {
-curl_global_init(CURL_GLOBAL_ALL);
-auto config = std::make_shared<Config>();
-
+  curl_global_init(CURL_GLOBAL_ALL);
+  auto config = std::make_shared<Config>();
 
   using namespace ftxui;
 
@@ -217,23 +218,33 @@ auto config = std::make_shared<Config>();
   // Volume control
   int volume = 100;
 
-  std::vector<Element> trending_elements;
+  // std::vector<Element> trending_elements;
+  // std::thread trending_thread([&]() {
+  //   trending_tracks = saavn.fetch_trending();
+  //   for (const auto &track : trending_tracks) {
+  //     trending_track_strings.push_back(track.name);
+  //   }
+
+  //   for (const auto &track : trending_tracks) {
+  //     trending_elements.push_back(
+  //         vbox({
+  //             hbox({vbox({
+  //                       text(track.name) | bold | color(Color::White),
+  //                       text(track.artist) | dim,
+  //                   }) | flex,
+  //                   text(" ▶ ") | color(Color::White) | border}),
+  //         }) |
+  //         bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL,
+  //         5));
+  //   }
+  //   screen.PostEvent(Event::Custom);
+  // });
+  // trending_thread.detach();
+
   std::thread trending_thread([&]() {
     trending_tracks = saavn.fetch_trending();
     for (const auto &track : trending_tracks) {
-      trending_track_strings.push_back(track.name);
-    }
-
-    for (const auto &track : trending_tracks) {
-      trending_elements.push_back(
-          vbox({
-              hbox({vbox({
-                        text(track.name) | bold | color(Color::White),
-                        text(track.artist) | dim,
-                    }) | flex,
-                    text(" ▶ ") | color(Color::White) | border}),
-          }) |
-          bgcolor(Color::HSV(0.5, 0.2, 0.2)) | border | size(HEIGHT, EQUAL, 5));
+      trending_track_strings.push_back(track.to_string());
     }
     screen.PostEvent(Event::Custom);
   });
@@ -256,7 +267,8 @@ auto config = std::make_shared<Config>();
   auto menu = Menu(&tracks, &selected);
   menu =
       Menu(&tracks, &selected) |
-      CatchEvent([&button_text, &next_playlist, &playlist_mutex, &config](Event event) {
+      CatchEvent([&button_text, &next_playlist, &playlist_mutex,
+                  &config](Event event) {
         if (event == Event::Return) {
           std::cerr << "Selected: " << selected << std::endl;
           if (selected >= 0 && selected < track_data.size()) {
@@ -345,12 +357,13 @@ auto config = std::make_shared<Config>();
             /* std::string current_song = player->get_current_track(); */
             std::replace(current_song.begin(), current_song.end(), '/', '_');
             std::replace(current_song.begin(), current_song.end(), '\\', '_');
-            /* std::string final_path = "/home/dk/Music/" + current_song + ".mp3"; */
+            /* std::string final_path = "/home/dk/Music/" + current_song +
+             * ".mp3"; */
             std::string path = config->get_download_path();
 
-
             // Start download
-            if (player->download_track(track_data[selected].url, path, current_song)) {
+            if (player->download_track(track_data[selected].url, path,
+                                       current_song)) {
               system(("notify-send \"Started downloading: " +
                       track_data[selected].name + "\"")
                          .c_str());
@@ -362,15 +375,37 @@ auto config = std::make_shared<Config>();
           }
           return true;
         }
-        if(event == Event::Character('p')) {
-            std::string some = config->get_download_path();
-            system(("notify-send \"Download path: " + some + "\"").c_str());
-        }
-        
-        if(event == Event::Character('r')) {
-            player->toggle_repeat();
+        if (event == Event::Character('p')) {
+          std::string some = config->get_download_path();
+          system(("notify-send \"Download path: " + some + "\"").c_str());
         }
 
+        if (event == Event::Character('r')) {
+          player->toggle_repeat();
+        }
+
+        return false;
+      });
+
+  auto trending_menu =
+      Menu(&trending_track_strings, &selected_trending) |
+      CatchEvent([&](Event event) {
+        if (event == Event::Return) {
+          if (selected_trending >= 0 &&
+              selected_trending < trending_tracks.size()) {
+            current_source = PlaylistSource::Search;
+            if (!track_data_forestfm.empty()) {
+              player->stop();
+            }
+            player->play(trending_tracks[selected_trending].url);
+            current_track = trending_tracks[selected_trending].name;
+            current_artist = trending_tracks[selected_trending].artist;
+            button_text = "Pause";
+            recently_played.push_back(trending_tracks[selected_trending]);
+            screen.PostEvent(Event::Custom);
+          }
+          return true;
+        }
         return false;
       });
 
@@ -657,27 +692,12 @@ auto config = std::make_shared<Config>();
 
           Container::Vertical({
               input_search,
-              menu,
-              menu2,
-              Container::Horizontal({
-                  Container::Vertical({
-                      menu | frame | size(HEIGHT, EQUAL, 22) |
-                          size(WIDTH, EQUAL, 90),
-                  }),
-                  Container::Vertical({Renderer([&] {
-                    return vbox({vbox({
-                                     hbox({
-                                         filler(),
-                                         text(" Trendings ") | bold |
-                                             color(Color::White),
-                                         filler(),
-                                     }),
-                                 }) | size(HEIGHT, LESS_THAN, 2),
-                                 separator(), vbox(trending_elements)}) |
-                           vscroll_indicator | yframe | flex |
-                           size(HEIGHT, EQUAL, 22);
-                  })}),
-              }),
+                          Container::Horizontal({
+                menu,
+                trending_menu,
+            }) | flex,
+              // menu,
+              // trending_menu,
           }),
 
           Container::Vertical({
@@ -839,27 +859,24 @@ auto config = std::make_shared<Config>();
                 separator(),
                 text("Available Tracks:") | bold,
                 /* menu->Render() | frame | flex, */
-                hbox({vbox({
-                          menu->Render() | frame | size(HEIGHT, EQUAL, 22) |
-                              size(WIDTH, EQUAL, 90),
-                      }),
-                      separator(),
-                      /* vbox({ */
-                      /*      menu2->Render(), */
-                      /* }), */
-
-                      vbox({vbox({
-                                hbox({
-                                    filler(),
-                                    text(" Trendings ") | bold |
-                                        color(Color::White),
-                                    filler(),
-                                }),
-                            }) | size(HEIGHT, LESS_THAN, 2),
-                            separator(), vbox(trending_elements)
-
-                      }) | vscroll_indicator |
-                          yframe | flex | size(HEIGHT, EQUAL, 22)}),
+                hbox(
+                    {vbox({
+                         menu->Render() | frame | size(HEIGHT, EQUAL, 22) |
+                             size(WIDTH, EQUAL, 90),
+                     }),
+                     separator(),
+                     /* vbox({ */
+                     /*      menu2->Render(), */
+                     /* }), */
+                     vbox({hbox({
+                               filler(),
+                               text(" Trendings ") | bold | color(Color::White),
+                               filler(),
+                           }),
+                           separator(), trending_menu->Render() | frame}) |
+                         vscroll_indicator | yframe | flex |
+                         size(HEIGHT, EQUAL, 22)
+                    }),
 
                 // text("Subtitles: " + current_subtitle_text) |
                 // color(Color::Blue),
