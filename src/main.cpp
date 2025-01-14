@@ -186,6 +186,25 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
   screen.PostEvent(ftxui::Event::Custom);
 }
 
+ftxui::Component create_visualizer() {
+  return ftxui::Renderer([&] {
+    std::vector<ftxui::Element> bars;
+
+    // Get latest visualization data
+    auto viz_data = player->get_visualization_data();
+
+    // Create bars for visualization
+    for (size_t i = 0; i < viz_data.size(); i++) {
+      int height =
+          static_cast<int>(viz_data[i] * 8); // Scale to reasonable height
+      bars.push_back(ftxui::vbox({ftxui::text(std::string(height, '|')) |
+                                  color(ftxui::Color::Green)}));
+    }
+
+    return hbox(std::move(bars));
+  });
+}
+
 int main() {
   curl_global_init(CURL_GLOBAL_ALL);
   auto config = std::make_shared<Config>();
@@ -694,6 +713,7 @@ int main() {
               playlist_menu,
               play_forestfm,
               play_classic,
+              // create_visualizer(),
               volume_slider,
           }),
 
@@ -911,27 +931,45 @@ int main() {
                 }) | center,
                 separator(),
                 hbox({
-                    [&]() -> Element {
-                      // Fetch the ASCII art for testing
-                      auto art = get_track_ascii_art({});
-                      // Convert each line into an FTXUI Element
-                      std::vector<Element> art_elements;
-                      for (const auto &line : art) {
-                        art_elements.push_back(text(line) | color(Color::Blue));
-                      }
-                      return vbox(std::move(art_elements)) | center;
-                    }(),
+                    // [&]() -> Element {
+                    //   // Fetch the ASCII art for testing
+                    //   auto art = get_track_ascii_art({});
+                    //   // Convert each line into an FTXUI Element
+                    //   std::vector<Element> art_elements;
+                    //   for (const auto &line : art) {
+                    //     art_elements.push_back(text(line) |
+                    //     color(Color::Blue));
+                    //   }
+                    //   return vbox(std::move(art_elements)) | center;
+                    // }(),
+                    create_visualizer()->Render(),
+                    // [&]() -> Element {
+                    //   auto viz_data = player->get_visualization_data();
+                    //   std::vector<Element> bars;
+
+                    //   // Create bars for visualization
+                    //   for (size_t i = 0; i < viz_data.size(); i++) {
+                    //     int height = static_cast<int>(
+                    //         viz_data[i] * 8); // Scale to reasonable height
+                    //     bars.push_back(vbox({text(std::string(height, '|')) |
+                    //                          color(ftxui::Color::Green)}));
+                    //   }
+
+                    //   return hbox(std::move(bars)) | center;
+                    // }(),
                 }) | center,
                 separator(),
                 hbox({
                     text("♪ ") | color(Color::Blue),
                     volume_slider->Render(),
                 }),
-                //////// Volume slider with % ////////////////////////////////////
+                //////// Volume slider with %
+                ///////////////////////////////////////
                 // hbox({
                 //     text("🔊 ") | color(Color::Blue),
                 //     volume_slider->Render() | flex,
-                //     text(std::to_string(volume) + "%") | size(WIDTH, EQUAL, 4),
+                //     text(std::to_string(volume) + "%") | size(WIDTH, EQUAL,
+                //     4),
                 // }) | size(HEIGHT, EQUAL, 1),
                 /////////////////////////////////////////////////////////////////
             }) | size(WIDTH, EQUAL, 30) |

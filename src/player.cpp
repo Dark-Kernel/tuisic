@@ -2,6 +2,7 @@
 
 #include "Track.h"
 #include "config.hpp"
+#include "visualizer.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstring>
@@ -17,6 +18,12 @@
 
 class MusicPlayer {
 private:
+  std::shared_ptr<AudioVisualizer> visualizer;
+  std::vector<double> audio_buffer;
+  std::function<void(const std::vector<double> &)> on_audio_data;
+    std::vector<double> visualization_data;  // Store processed visualization data
+
+
   // Smart pointer with custom deleter for mpv handle
   std::unique_ptr<mpv_handle, decltype(&mpv_destroy)> mpv{nullptr, mpv_destroy};
   std::shared_ptr<Config> config;
@@ -95,10 +102,17 @@ public:
       }
     }
 
+    visualizer = std::make_shared<AudioVisualizer>();
+
     // Property observation
     mpv_observe_property(mpv.get(), 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv.get(), 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv.get(), 0, "sub-text", MPV_FORMAT_STRING);
+    mpv_observe_property(mpv.get(), 0, "audio-data", MPV_FORMAT_NODE);
+    mpv_set_option_string(mpv.get(), "audio-display", "no");
+    mpv_set_option_string(mpv.get(), "ao", "pulse");  // or your preferred audio output
+
+
     mpv_set_property_string(mpv.get(), "sid", "1");
     mpv_request_event(mpv.get(), MPV_EVENT_TICK, true);
 
@@ -123,6 +137,11 @@ public:
     if (event_thread && event_thread->joinable()) {
       event_thread->join();
     }
+  }
+
+  void set_audio_callback(
+      std::function<void(const std::vector<double> &)> callback) {
+    on_audio_data = std::move(callback);
   }
 
   // Subtitle management methods
@@ -299,13 +318,13 @@ public:
     current_playlist_index = -1;
   }
 
-  bool download_track(const std::string &url, const std::string path, const std::string &filename) {
+  bool download_track(const std::string &url, const std::string path,
+                      const std::string &filename) {
     std::lock_guard<std::mutex> lock(player_mutex);
     /* std::string final_path = config->get_download_path(); */
 
     std::string final_path = path + "/" + filename;
     /* std::string final_path = "/home/dk/Music/" + filename; */
-
 
     if (is_downloading) {
       log_error("Already another download in progress");
@@ -378,19 +397,24 @@ public:
     return current_playlist_index;
   }
 
-
   void set_volume(int volume) {
     std::lock_guard<std::mutex> lock(player_mutex);
     int64_t mpv_volume = std::clamp(volume, 0, 100);
-    mpv_set_property_async(mpv.get(), 0, "volume", MPV_FORMAT_INT64, &mpv_volume);
+    mpv_set_property_async(mpv.get(), 0, "volume", MPV_FORMAT_INT64,
+                           &mpv_volume);
   }
 
   int get_volume() const {
-        std::lock_guard<std::mutex> lock(player_mutex);
-        int64_t volume = 100;
-        mpv_get_property(mpv.get(), "volume", MPV_FORMAT_INT64, &volume);
-        return static_cast<int>(volume); 
+    std::lock_guard<std::mutex> lock(player_mutex);
+    int64_t volume = 100;
+    mpv_get_property(mpv.get(), "volume", MPV_FORMAT_INT64, &volume);
+    return static_cast<int>(volume);
   }
+
+  std::vector<double> get_visualization_data() const {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    return visualization_data;
+}
 
   // Callback setters
 
@@ -455,8 +479,38 @@ private:
   }
 
   void handle_property_change(mpv_event_property *prop) {
-    if (strcmp(prop->name, "time-pos") == 0 &&
-        prop->format == MPV_FORMAT_DOUBLE) {
+    if (strcmp(prop->name, "audio-data") == 0 &&
+        prop->format == MPV_FORMAT_NODE) {
+      auto *node = static_cast<mpv_node *>(prop->data);
+      if (node->format == MPV_FORMAT_BYTE_ARRAY) {
+        // Convert audio data to doubles
+        auto *bytes = node->u.ba->data;
+        size_t num_samples = node->u.ba->size / sizeof(float);
+        audio_buffer.resize(num_samples);
+
+        for (size_t i = 0; i < num_samples; i++) {
+          audio_buffer[i] =
+              static_cast<double>(reinterpret_cast<float *>(bytes)[i]);
+        }
+
+        // Process through visualizer
+        // auto viz_data = visualizer->process(audio_buffer);
+         {
+            std::lock_guard<std::mutex> lock(player_mutex);
+            visualization_data = visualizer->process(audio_buffer);
+        }
+         // In the audio data handling section:
+std::cerr << "Audio data received: " << num_samples << " samples" << std::endl;
+std::cerr << "Visualization data size: " << visualization_data.size() << std::endl;
+
+
+        // Send to callback
+        if (on_audio_data) {
+          on_audio_data(visualization_data);
+        }
+      }
+    } else if (strcmp(prop->name, "time-pos") == 0 &&
+               prop->format == MPV_FORMAT_DOUBLE) {
       current_position = *static_cast<double *>(prop->data);
       if (on_time_update) {
         on_time_update(current_position, duration);
