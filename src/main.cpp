@@ -931,18 +931,18 @@ int main() {
                 }) | center,
                 separator(),
                 hbox({
-                    // [&]() -> Element {
-                    //   // Fetch the ASCII art for testing
-                    //   auto art = get_track_ascii_art({});
-                    //   // Convert each line into an FTXUI Element
-                    //   std::vector<Element> art_elements;
-                    //   for (const auto &line : art) {
-                    //     art_elements.push_back(text(line) |
-                    //     color(Color::Blue));
-                    //   }
-                    //   return vbox(std::move(art_elements)) | center;
-                    // }(),
-                    create_visualizer()->Render(),
+                    [&]() -> Element {
+                      // Fetch the ASCII art for testing
+                      auto art = get_track_ascii_art({});
+                      // Convert each line into an FTXUI Element
+                      std::vector<Element> art_elements;
+                      for (const auto &line : art) {
+                        art_elements.push_back(text(line) |
+                        color(Color::Blue));
+                      }
+                      return vbox(std::move(art_elements)) | center;
+                    }(),
+                // create_visualizer()->Render(),
                     // [&]() -> Element {
                     //   auto viz_data = player->get_visualization_data();
                     //   std::vector<Element> bars;
@@ -1027,7 +1027,7 @@ int main() {
             }) | center,
         }),
         separator(),
-        hbox({text(" λ arch music ") | bgcolor(Color::Blue) |
+        hbox({text(" λ Arch Music ") | bgcolor(Color::Blue) |
                   color(Color::White),
               filler(),
               hbox({
