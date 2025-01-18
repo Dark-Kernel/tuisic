@@ -9,6 +9,14 @@ https://github.com/user-attachments/assets/ef349a06-0d7e-488b-aa3d-de928d9b0eef
 
 It let's you search and play online songs from cli hassle free.
 
+## Features
+- Vim motions
+- Easy downloads
+- Multiple song sources
+- Playlist support
+- Copy urls
+- Add to favourites
+
 ## Sources
 It fetches songs from some platforms:
 - SoundCloud
