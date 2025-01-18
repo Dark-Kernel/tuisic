@@ -2,7 +2,8 @@
 
 TUI Online Music Streaming application.
 
-https://github.com/user-attachments/assets/264c5324-e985-48e6-83c4-a8c60a4d3e14
+
+https://github.com/user-attachments/assets/ef349a06-0d7e-488b-aa3d-de928d9b0eef
 
 
 
