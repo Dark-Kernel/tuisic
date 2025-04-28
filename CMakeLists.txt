@@ -1,21 +1,37 @@
 cmake_minimum_required(VERSION 3.11)
 
+project(tuisic LANGUAGES C CXX VERSION 1.0.0)
+add_executable(tuisic src/main.cpp)
+
 find_package(Git REQUIRED)
 execute_process(
     COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-include(FetchContent)
-set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
-FetchContent_Declare(ftxui
-  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-  GIT_TAG main # Important: Specify a version or a commit hash here.
-)
-FetchContent_MakeAvailable(ftxui)
+# include(FetchContent)
+# set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+# FetchContent_Declare(ftxui
+#   GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+#   GIT_TAG main # Important: Specify a version or a commit hash here.
+# )
+# FetchContent_MakeAvailable(ftxui)
+
+# Try to find FTXUI installed on system
+find_package(ftxui CONFIG)
+
+if(NOT ftxui_FOUND)
+    message(STATUS "FTXUI not found, fetching it...")
+    include(FetchContent)
+    set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+    FetchContent_Declare(ftxui
+      GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+      GIT_TAG main
+    )
+    FetchContent_MakeAvailable(ftxui)
+endif()
+
  
-project(tuisic LANGUAGES C CXX VERSION 1.0.0)
-add_executable(tuisic src/main.cpp)
 
 # Set installation directories
 include(GNUInstallDirs)
