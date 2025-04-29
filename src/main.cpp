@@ -12,6 +12,7 @@
 #include <ftxui/component/screen_interactive.hpp> // for ScreenInteractive
 #include <ftxui/screen/color.hpp>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
