@@ -5,6 +5,7 @@
 #include "visualizer.hpp"
 #include <algorithm>
 #include <atomic>
+#include <cstdlib>
 #include <cstring>
 #include <curl/curl.h>
 #include <fmt/format.h>
@@ -287,6 +288,11 @@ public:
   std::string get_current_track() const {
     std::lock_guard<std::mutex> lock(player_mutex);
     return current_url;
+  }
+  
+  std::string get_current_track_data() const {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    return current_track_data[current_track_index].id;
   }
 
   void seek(double position) {

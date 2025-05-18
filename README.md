@@ -16,13 +16,16 @@ It let's you search and play online songs from cli hassle free.
 - Playlist support
 - Copy urls
 - Add to favourites
+- Daemon mode (BETA, press 'w' to toggle) 
 
 ## Sources
 It fetches songs from some platforms:
+- JioSaavn
 - SoundCloud
 - LastFM
 - ForestFM
-- YouTube ( Yet to be implemented )
+- YouTube
+- YouTube Music (on the way)
 
 ## Installation: 
 1. Using [AUR](https://aur.archlinux.org/packages/tuisic-git) package

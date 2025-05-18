@@ -1,4 +1,13 @@
 #include "ftxui/dom/elements.hpp"
+#include "justmusic.cpp"
+#include "lastfm.cpp"
+#include "localStorage.cpp"
+#include "player.cpp"
+#include "playlist_handler.cpp"
+#include "saavn.cpp"
+#include "soundcloud.cpp"
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/urlapi.h>
@@ -13,16 +22,10 @@
 #include <ftxui/screen/color.hpp>
 #include <iostream>
 #include <map>
+#include <sched.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
-
-#include "justmusic.cpp"
-#include "lastfm.cpp"
-#include "localStorage.cpp"
-#include "player.cpp"
-#include "playlist_handler.cpp"
-#include "saavn.cpp"
-#include "soundcloud.cpp"
 
 // Data in string to render in UI
 std::vector<std::string> track_strings;
@@ -43,6 +46,8 @@ std::vector<Track> trending_tracks;
 
 std::string current_track = "🎵 Music Streaming App 🎵";
 std::string current_artist = "Welcome back, User!";
+
+static std::atomic<bool> daemon_mode_active{false};
 
 // Playlist track index
 int current_track_index = 0;
@@ -206,7 +211,25 @@ ftxui::Component create_visualizer() {
   });
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  if (argc >= 3 && std::string(argv[1]) == "--daemon") {
+    auto player = std::make_shared<MusicPlayer>();
+    std::string current_track_id = argv[2];
+    std::string current_track_url = argv[3];
+    auto next_tracks = saavn.fetch_next_tracks(current_track_id.c_str());
+    std::vector<std::string> next_track_urls;
+    next_track_urls.push_back(current_track_url);
+    for (const auto &track : next_tracks) {
+      next_track_urls.push_back(track.url);
+    }
+    // next_tracks.insert(next_tracks.begin(), track_data[selected]);
+    player->create_playlist(next_track_urls);
+    player->play(current_track_url);
+
+    // keep alive
+    std::this_thread::sleep_for(std::chrono::hours(24 * 365));
+    return 0;
+  }
   curl_global_init(CURL_GLOBAL_ALL);
   auto config = std::make_shared<Config>();
 
@@ -287,8 +310,8 @@ int main() {
   auto menu = Menu(&tracks, &selected);
   menu =
       Menu(&tracks, &selected) |
-      CatchEvent([&button_text, &next_playlist, &playlist_mutex,
-                  &config](Event event) {
+      CatchEvent([&button_text, &next_playlist, &playlist_mutex, &config,
+                  argv](Event event) {
         if (event == Event::Return) {
           std::cerr << "Selected: " << selected << std::endl;
           if (selected >= 0 && selected < track_data.size()) {
@@ -308,7 +331,10 @@ int main() {
 
               std::thread next_tracks_thread([&]() {
                 try {
-                  /* std::cerr << "Fetttgiing nextttttttttttttt"; */
+                  /* std::cerr << "Fetttchiing nextttttttttttttt"; */
+                  // system(("notify-send 'Tuisic' " + track_data[selected].id +
+                  //         track_data[selected].url)
+                  //            .c_str());
                   next_tracks =
                       saavn.fetch_next_tracks(track_data[selected].id);
                   std::vector<std::string> next_track_urls;
@@ -402,6 +428,24 @@ int main() {
 
         if (event == Event::Character('r')) {
           player->toggle_repeat();
+        }
+
+        if (event == Event::Character("w")) {
+          daemon_mode_active = true;
+          // system(("notify-send \"Starting daemon..." + track[0].id.c_str() + "\"").c_str());
+
+          std::string url = player->get_current_track();
+          pid_t pid = fork();
+          if (pid < 0) {
+            exit(1);
+          }
+          if (pid == 0) {
+            // child: replace image with daemon invocation
+            execl(argv[0], argv[0], "--daemon", track_data[0].id.c_str(),
+                  url.c_str(), nullptr);
+            _exit(1);
+          }
+          screen.Exit();
         }
 
         return false;
@@ -938,12 +982,11 @@ int main() {
                       // Convert each line into an FTXUI Element
                       std::vector<Element> art_elements;
                       for (const auto &line : art) {
-                        art_elements.push_back(text(line) |
-                        color(Color::Blue));
+                        art_elements.push_back(text(line) | color(Color::Blue));
                       }
                       return vbox(std::move(art_elements)) | center;
                     }(),
-                // create_visualizer()->Render(),
+                    // create_visualizer()->Render(),
                     // [&]() -> Element {
                     //   auto viz_data = player->get_visualization_data();
                     //   std::vector<Element> bars;
@@ -1033,6 +1076,7 @@ int main() {
               filler(),
               hbox({
                   text("⌨️ ") | dim,
+                  text("w:Daemon ") | dim,
                   text("Space:Play ") | dim,
                   text("↑/↓:Navigate ") | dim,
                   text("./,:Skip ") | dim,
@@ -1046,6 +1090,7 @@ int main() {
                   dim}),
     });
   });
+
   screen.Loop(renderer);
   return 0;
 }
