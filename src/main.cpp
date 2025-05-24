@@ -23,6 +23,11 @@
 #include <iostream>
 #include <map>
 #include <sched.h>
+#include <sdbus-c++/IConnection.h>
+#include <sdbus-c++/Message.h>
+#include <sdbus-c++/Types.h>
+#include <sdbus-c++/VTableItems.h>
+#include <sdbus-c++/sdbus-c++.h>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -211,11 +216,15 @@ ftxui::Component create_visualizer() {
   });
 }
 
+sdbus::IObject *g_concatenator{};
+
 int main(int argc, char *argv[]) {
   if (argc >= 3 && std::string(argv[1]) == "--daemon") {
     auto player = std::make_shared<MusicPlayer>();
     std::string current_track_id = argv[2];
-    std::string current_track_url = argv[3];
+    std::string current_track_name = argv[3];
+    std::string current_track_artist = argv[4];
+    std::string current_track_url = argv[5];
     auto next_tracks = saavn.fetch_next_tracks(current_track_id.c_str());
     std::vector<std::string> next_track_urls;
     next_track_urls.push_back(current_track_url);
@@ -225,6 +234,193 @@ int main(int argc, char *argv[]) {
     // next_tracks.insert(next_tracks.begin(), track_data[selected]);
     player->create_playlist(next_track_urls);
     player->play(current_track_url);
+    int current_track_indexx = player->get_current_playlist_index();
+    system(("notify-send 'Tuisic' 'Playing'" +
+            std::to_string(current_track_indexx))
+               .c_str());
+    // std::string current_title = next_tracks[current_track_indexx].name;
+    // std::string current_artist = next_tracks[current_track_indexx].artist;
+
+    double current_position = 0.0;
+    double total_duration = 0.0;
+    int progress_percentage = 0;
+
+    double seek_position = (progress_percentage / 100.0) * total_duration;
+    seek_position = std::min(seek_position, total_duration);
+
+    player->set_time_callback([&](double pos, double dur) {
+      current_position = pos;
+      total_duration = dur;
+      // system("notify-send 'Tuisic' 'Changing position'");
+      // Prevent division by zero and ensure valid percentage
+      if (total_duration > 0) {
+        progress_percentage = static_cast<int>((pos / dur) * 100.0);
+      }
+    });
+
+    sdbus::ServiceName serviceName{"org.mpris.MediaPlayer2.tuisic"};
+    auto connection = sdbus::createSessionBusConnection(serviceName);
+    // connection->requestName(serviceName);
+    sdbus::ObjectPath objectPath{"/org/mpris/MediaPlayer2"};
+    // std::unique_ptr<sdbus::IObject> object;
+
+    auto object = sdbus::createObject(*connection, std::move(objectPath));
+    g_concatenator = object.get();
+
+    sdbus::InterfaceName interfaceName{"org.mpris.MediaPlayer2"};
+    sdbus::InterfaceName interfaceName2{"org.mpris.MediaPlayer2.Player"};
+    auto getPlaybackStatus = [&]() -> std::string {
+      if (player->is_playing_state()) {
+        return "Playing";
+      } else if (player->is_paused_state()) {
+        return "Paused";
+      } else {
+        return "Stopped";
+      }
+    };
+
+    auto getMetadata = [&]() -> std::map<std::string, sdbus::Variant> {
+      std::map<std::string, sdbus::Variant> metadata;
+      metadata["mpris:trackid"] = sdbus::Variant(current_track_id);
+      metadata["xesam:title"] = sdbus::Variant(current_track_name);
+      metadata["xesam:artist"] =
+          sdbus::Variant(std::vector<std::string>{current_track_artist});
+      metadata["mpris:length"] =
+          sdbus::Variant(int64_t(180000000)); // 3 minutes in microseconds
+      // metadata["mpris:length"] = sdbus::Variant(int64_t(180000000)); // 3
+      // minutes in microseconds
+      return metadata;
+    };
+
+    auto updatePlaybackStatus = [&]() {
+      std::map<std::string, sdbus::Variant> properties;
+      properties["PlaybackStatus"] = sdbus::Variant(getPlaybackStatus());
+      // emitPropertiesChanged("org.mpris.MediaPlayer2.Player", properties);
+    };
+
+    auto updateMetadata = [&]() {
+      std::map<std::string, sdbus::Variant> properties;
+      properties["Metadata"] = sdbus::Variant(getMetadata());
+      // emitPropertiesChanged("org.mpris.MediaPlayer2.Player", properties);
+    };
+
+    g_concatenator
+        ->addVTable(sdbus::MethodVTableItem{sdbus::MethodName{"Stop"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [&](sdbus::MethodCall call) {
+                                              player->stop();
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"PlayPause"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [&](sdbus::MethodCall call) {
+                                              player->togglePlayPause();
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"Next"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [&](sdbus::MethodCall call) {
+                                              player->next_track();
+                                              updateMetadata();
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"Pause"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [&](sdbus::MethodCall call) {
+                                              player->pause();
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"Play"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [&](sdbus::MethodCall call) {
+                                              player->resume();
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}})
+        .forInterface(interfaceName2);
+
+    // Properties for MediaPlayer2 interface
+    g_concatenator
+        ->addVTable(sdbus::registerProperty("Identity").withGetter([]() {
+          return "tuisic";
+        }),
+                    sdbus::registerProperty("CanQuit").withGetter(
+                        []() { return true; }),
+                    sdbus::registerProperty("CanRaise").withGetter([]() {
+                      return false;
+                    }),
+                    sdbus::registerProperty("DesktopEntry").withGetter([]() {
+                      return "tuisic";
+                    }))
+        .forInterface(interfaceName);
+
+    // Properties for Player interface
+    g_concatenator
+        ->addVTable(
+            sdbus::registerProperty("PlaybackStatus")
+                .withGetter(
+                    [getPlaybackStatus]() { return getPlaybackStatus(); }),
+            sdbus::registerProperty("CanGoNext").withGetter([]() {
+              return true;
+            }),
+            sdbus::registerProperty("CanGoPrevious").withGetter([]() {
+              return true;
+            }),
+            sdbus::registerProperty("CanPause").withGetter([]() {
+              return true;
+            }),
+            sdbus::registerProperty("CanPlay").withGetter(
+                []() { return true; }),
+            sdbus::registerProperty("CanSeek").withGetter(
+                []() { return true; }),
+            sdbus::registerProperty("Position").withGetter([]() {
+              return int64_t(0);
+            }),
+            sdbus::registerProperty("Volume").withGetter([]() { return 1.0; }),
+            sdbus::registerProperty("Metadata").withGetter([&]() {
+              return getMetadata();
+            }),
+            sdbus::SignalVTableItem{sdbus::SignalName{"PropertiesChanged"},
+                                    sdbus::Signature{"sa{sv}as"},
+                                    {}})
+        .forInterface(interfaceName2);
+
+    player->set_end_of_track_callback([&] {
+      // system(("notify-send 'Tuisic' 'Next track '" +
+      // next_tracks[current_track_indexx].name + "").c_str());
+      current_track_indexx = (current_track_indexx + 1) % next_tracks.size();
+      current_track_name = next_tracks[current_track_indexx-1].name;
+      current_track_artist = next_tracks[current_track_indexx-1].artist;
+    });
+
+    // Run the I/O event loop on the bus connection.
+    std::thread([&connection] { connection->enterEventLoop(); }).detach();
+    updateMetadata();
+    updatePlaybackStatus();
 
     // keep alive
     std::this_thread::sleep_for(std::chrono::hours(24 * 365));
@@ -432,7 +628,8 @@ int main(int argc, char *argv[]) {
 
         if (event == Event::Character("w")) {
           daemon_mode_active = true;
-          // system(("notify-send \"Starting daemon..." + track[0].id.c_str() + "\"").c_str());
+          // system(("notify-send \"Starting daemon..." + track[0].id.c_str() +
+          // "\"").c_str());
 
           std::string url = player->get_current_track();
           pid_t pid = fork();
@@ -442,6 +639,7 @@ int main(int argc, char *argv[]) {
           if (pid == 0) {
             // child: replace image with daemon invocation
             execl(argv[0], argv[0], "--daemon", track_data[0].id.c_str(),
+                  track_data[0].name.c_str(), track_data[0].artist.c_str(),
                   url.c_str(), nullptr);
             _exit(1);
           }

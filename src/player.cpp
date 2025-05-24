@@ -285,6 +285,20 @@ public:
     }
   }
 
+  void togglePlayPause() {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    if (is_paused) {
+      const char *cmd[] = {"cycle", "pause", NULL};
+      mpv_command_async(mpv.get(), 0, cmd);
+      is_paused = false;
+    } else {
+      const char *cmd[] = {"cycle", "pause", NULL};
+      mpv_command_async(mpv.get(), 0, cmd);
+      is_paused = !is_paused;
+    }
+
+  }
+
   std::string get_current_track() const {
     std::lock_guard<std::mutex> lock(player_mutex);
     return current_url;
@@ -554,6 +568,7 @@ std::cerr << "Visualization data size: " << visualization_data.size() << std::en
 
 public:
   bool is_playing_state() const { return is_loaded && !is_paused; }
+  bool is_paused_state() const { return is_loaded && is_paused; }
   double get_position() const { return current_position; }
   double get_duration() const { return duration; }
 };

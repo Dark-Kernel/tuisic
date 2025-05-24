@@ -9,6 +9,8 @@ execute_process(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+find_package(sdbus-c++ REQUIRED)
+
 # include(FetchContent)
 # set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
 # FetchContent_Declare(ftxui
@@ -76,6 +78,7 @@ target_include_directories(cavacore PUBLIC
 target_link_libraries(cavacore PUBLIC 
     ${FFTW3_LIBRARIES}
     m  # Math library
+    PRIVATE SDBusCpp::sdbus-c++
 )
 
 # Find CURL package
