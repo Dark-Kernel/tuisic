@@ -231,15 +231,12 @@ int main(int argc, char *argv[]) {
     for (const auto &track : next_tracks) {
       next_track_urls.push_back(track.url);
     }
-    // next_tracks.insert(next_tracks.begin(), track_data[selected]);
     player->create_playlist(next_track_urls);
     player->play(current_track_url);
     int current_track_indexx = player->get_current_playlist_index();
     system(("notify-send 'Tuisic' 'Playing'" +
             std::to_string(current_track_indexx))
                .c_str());
-    // std::string current_title = next_tracks[current_track_indexx].name;
-    // std::string current_artist = next_tracks[current_track_indexx].artist;
 
     double current_position = 0.0;
     double total_duration = 0.0;
@@ -262,7 +259,6 @@ int main(int argc, char *argv[]) {
     auto connection = sdbus::createSessionBusConnection(serviceName);
     // connection->requestName(serviceName);
     sdbus::ObjectPath objectPath{"/org/mpris/MediaPlayer2"};
-    // std::unique_ptr<sdbus::IObject> object;
 
     auto object = sdbus::createObject(*connection, std::move(objectPath));
     g_concatenator = object.get();
@@ -283,24 +279,30 @@ int main(int argc, char *argv[]) {
       std::map<std::string, sdbus::Variant> metadata;
       metadata["mpris:trackid"] = sdbus::Variant(current_track_id);
       metadata["xesam:title"] = sdbus::Variant(current_track_name);
+      metadata["position"] = sdbus::Variant(int64_t(current_position * 1000000));
       metadata["xesam:artist"] =
           sdbus::Variant(std::vector<std::string>{current_track_artist});
       metadata["mpris:length"] =
-          sdbus::Variant(int64_t(180000000)); // 3 minutes in microseconds
-      // metadata["mpris:length"] = sdbus::Variant(int64_t(180000000)); // 3
-      // minutes in microseconds
+          sdbus::Variant(int64_t(total_duration * 1000000)); // 3 minutes in microseconds
       return metadata;
     };
 
     auto updatePlaybackStatus = [&]() {
       std::map<std::string, sdbus::Variant> properties;
+      std::vector<sdbus::PropertyName> propNames;
+
       properties["PlaybackStatus"] = sdbus::Variant(getPlaybackStatus());
+      properties["Position"] = sdbus::Variant(int64_t(current_position * 1000000));
+      g_concatenator->emitPropertiesChangedSignal(interfaceName2);
+      // g_concatenator->emitSignal(sdbus::SignalName{"PropertiesChanged"}).onInterface(interfaceName2).withArguments(sdbus::Signature{"sa{sv}as"}, properties, std::vector<std::string>{});
       // emitPropertiesChanged("org.mpris.MediaPlayer2.Player", properties);
     };
 
     auto updateMetadata = [&]() {
+        system(("notify-send 'Tuisic' 'Updating metadata'"));
       std::map<std::string, sdbus::Variant> properties;
       properties["Metadata"] = sdbus::Variant(getMetadata());
+      g_concatenator->emitPropertiesChangedSignal(interfaceName2);
       // emitPropertiesChanged("org.mpris.MediaPlayer2.Player", properties);
     };
 
@@ -312,8 +314,10 @@ int main(int argc, char *argv[]) {
                                             {},
                                             [&](sdbus::MethodCall call) {
                                               player->stop();
+                                              updatePlaybackStatus();
                                               auto reply = call.createReply();
                                               reply.send();
+                                              exit(0);
                                             },
                                             {}},
                     sdbus::MethodVTableItem{sdbus::MethodName{"PlayPause"},
@@ -323,6 +327,7 @@ int main(int argc, char *argv[]) {
                                             {},
                                             [&](sdbus::MethodCall call) {
                                               player->togglePlayPause();
+                                              updatePlaybackStatus();
                                               auto reply = call.createReply();
                                               reply.send();
                                             },
@@ -334,7 +339,11 @@ int main(int argc, char *argv[]) {
                                             {},
                                             [&](sdbus::MethodCall call) {
                                               player->next_track();
+                                                current_track_indexx = (current_track_indexx + 1) % next_tracks.size();
+                                                current_track_name = next_tracks[current_track_indexx-1].name;
+                                                current_track_artist = next_tracks[current_track_indexx-1].artist;
                                               updateMetadata();
+                                              updatePlaybackStatus();
                                               auto reply = call.createReply();
                                               reply.send();
                                             },
@@ -346,6 +355,7 @@ int main(int argc, char *argv[]) {
                                             {},
                                             [&](sdbus::MethodCall call) {
                                               player->pause();
+                                              updatePlaybackStatus();
                                               auto reply = call.createReply();
                                               reply.send();
                                             },
@@ -357,6 +367,7 @@ int main(int argc, char *argv[]) {
                                             {},
                                             [&](sdbus::MethodCall call) {
                                               player->resume();
+                                              updatePlaybackStatus();
                                               auto reply = call.createReply();
                                               reply.send();
                                             },
@@ -388,7 +399,7 @@ int main(int argc, char *argv[]) {
               return true;
             }),
             sdbus::registerProperty("CanGoPrevious").withGetter([]() {
-              return true;
+              return true; // TODO
             }),
             sdbus::registerProperty("CanPause").withGetter([]() {
               return true;
@@ -397,8 +408,8 @@ int main(int argc, char *argv[]) {
                 []() { return true; }),
             sdbus::registerProperty("CanSeek").withGetter(
                 []() { return true; }),
-            sdbus::registerProperty("Position").withGetter([]() {
-              return int64_t(0);
+            sdbus::registerProperty("Position").withGetter([&]() {
+              return int64_t(current_position * 1000000);
             }),
             sdbus::registerProperty("Volume").withGetter([]() { return 1.0; }),
             sdbus::registerProperty("Metadata").withGetter([&]() {
@@ -410,8 +421,6 @@ int main(int argc, char *argv[]) {
         .forInterface(interfaceName2);
 
     player->set_end_of_track_callback([&] {
-      // system(("notify-send 'Tuisic' 'Next track '" +
-      // next_tracks[current_track_indexx].name + "").c_str());
       current_track_indexx = (current_track_indexx + 1) % next_tracks.size();
       current_track_name = next_tracks[current_track_indexx-1].name;
       current_track_artist = next_tracks[current_track_indexx-1].artist;

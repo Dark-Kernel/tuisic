@@ -7,7 +7,7 @@ https://github.com/user-attachments/assets/ef349a06-0d7e-488b-aa3d-de928d9b0eef
 
 
 
-It let's you search and play online songs from cli hassle free.
+First app of its kind, It let's you search and play online songs from cli hassle free.
 
 ## Features
 - Vim motions
@@ -16,7 +16,27 @@ It let's you search and play online songs from cli hassle free.
 - Playlist support
 - Copy urls
 - Add to favourites
+- Configuration file
 - Daemon mode (BETA, press 'w' to toggle) 
+- [MPRIS DBUS](https://wiki.archlinux.org/title/MPRIS) support ( via `playerctl` )
+
+## Shortcuts
+
+| Key | Action |
+| --- | --- |
+| `q` | quit |
+| `w` | toggle daemon mode |
+| `>` | next song |
+| `<` | previous song |
+| `<space>` | play/pause |
+| `Alt+l` | copy url |
+| `d` | download song |
+| `a` | add to favourites |
+| `.` | seek forward |
+| `,` | seek backward |
+| `m` | mute |
+
+
 
 ## Sources
 It fetches songs from some platforms:
@@ -38,7 +58,7 @@ yay -S tuisic-git
 
 ### Dependencies 
 ```sh
-sudo pacman -S curl mpv fmt yt-dlp
+sudo pacman -S curl mpv fmt yt-dlp fftw sdbus-cpp
 ```
 
 ### Build, Compile & Run
