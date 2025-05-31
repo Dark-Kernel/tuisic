@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            artifact_name: tuisic
+            asset_name: tuisic-linux-x64
+          - os: windows-latest
+            target: windows-x64
+            artifact_name: tuisic.exe
+            asset_name: tuisic-windows-x64.exe
+          - os: macos-latest
+            target: macos-x64
+            artifact_name: tuisic
+            asset_name: tuisic-macos-x64
+          - os: macos-latest
+            target: macos-arm64
+            artifact_name: tuisic
+            asset_name: tuisic-macos-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup build environment
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          brew install cmake pkg-config fftw mpv curl fmt sdbus-cpp
+        elif [ "$RUNNER_OS" == "Windows" ]; then
+          choco install cmake
+          # Note: Windows build requires vcpkg or manual dependency setup
+        fi
+      shell: bash
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        if [ "${{ matrix.target }}" == "macos-arm64" ]; then
+          cmake .. -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=Release
+        else
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+        fi
+      shell: bash
+
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.asset_name }}
+        path: build/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        
+        # Generate changelog from commits
+        if [ -n "$PREVIOUS_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s")
+        fi
+        
+        # Save changelog to file
+        echo "$CHANGELOG" > CHANGELOG.md
+        
+        # Set output for GitHub release
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: |
+          ## Changes
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Downloads
+          Download the appropriate binary for your platform:
+          - **Linux (x64)**: tuisic-linux-x64
+          - **Windows (x64)**: tuisic-windows-x64.exe  
+          - **macOS (Intel)**: tuisic-macos-x64
+          - **macOS (Apple Silicon)**: tuisic-macos-arm64
+        files: |
+          artifacts/*/tuisic*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
