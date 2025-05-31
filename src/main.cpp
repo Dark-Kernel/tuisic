@@ -49,7 +49,7 @@ std::vector<Track> next_tracks;
 std::vector<Track> recently_played;
 std::vector<Track> trending_tracks;
 
-std::string current_track = "🎵 Music Streaming App 🎵";
+std::string current_track = "🎵TUISIC 🎵";
 std::string current_artist = "Welcome back, User!";
 
 static std::atomic<bool> daemon_mode_active{false};
@@ -452,7 +452,7 @@ int main(int argc, char *argv[]) {
 
   // Selected track index
   auto reset_player_state = [&current_album, &button_text] {
-    current_track = "🎵 Music Streaming App 🎵";
+    current_track = "🎵TUISIC 🎵";
     current_artist = "Welcome back, User!";
     current_album = "";
     button_text = "Play";
@@ -1278,7 +1278,7 @@ int main(int argc, char *argv[]) {
             }) | center,
         }),
         separator(),
-        hbox({text(" λ Arch Music ") | bgcolor(Color::Blue) |
+        hbox({text(" λ TUISIC ") | bgcolor(Color::Blue) |
                   color(Color::White),
               filler(),
               hbox({
