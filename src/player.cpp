@@ -2,7 +2,7 @@
 
 #include "Track.h"
 #include "config.hpp"
-#include "visualizer.hpp"
+// #include "visualizer.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
@@ -19,10 +19,10 @@
 
 class MusicPlayer {
 private:
-  std::shared_ptr<AudioVisualizer> visualizer;
+  // std::shared_ptr<AudioVisualizer> visualizer;
   std::vector<double> audio_buffer;
   std::function<void(const std::vector<double> &)> on_audio_data;
-    std::vector<double> visualization_data;  // Store processed visualization data
+    // std::vector<double> visualization_data;  // Store processed visualization data
 
 
   // Smart pointer with custom deleter for mpv handle
@@ -103,7 +103,7 @@ public:
       }
     }
 
-    visualizer = std::make_shared<AudioVisualizer>();
+    // visualizer = std::make_shared<AudioVisualizer>();
 
     // Property observation
     mpv_observe_property(mpv.get(), 0, "time-pos", MPV_FORMAT_DOUBLE);
@@ -431,10 +431,10 @@ public:
     return static_cast<int>(volume);
   }
 
-  std::vector<double> get_visualization_data() const {
-    std::lock_guard<std::mutex> lock(player_mutex);
-    return visualization_data;
-}
+  // std::vector<double> get_visualization_data() const {
+  //   std::lock_guard<std::mutex> lock(player_mutex);
+  //   return visualization_data;
+// }
 
   // Callback setters
 
@@ -517,16 +517,16 @@ private:
         // auto viz_data = visualizer->process(audio_buffer);
          {
             std::lock_guard<std::mutex> lock(player_mutex);
-            visualization_data = visualizer->process(audio_buffer);
+            // visualization_data = visualizer->process(audio_buffer);
         }
          // In the audio data handling section:
 std::cerr << "Audio data received: " << num_samples << " samples" << std::endl;
-std::cerr << "Visualization data size: " << visualization_data.size() << std::endl;
+// std::cerr << "Visualization data size: " << visualization_data.size() << std::endl;
 
 
         // Send to callback
         if (on_audio_data) {
-          on_audio_data(visualization_data);
+          // on_audio_data(visualization_data);
         }
       }
     } else if (strcmp(prop->name, "time-pos") == 0 &&

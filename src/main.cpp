@@ -6,7 +6,6 @@
 #include "playlist_handler.cpp"
 #include "saavn.cpp"
 #include "soundcloud.cpp"
-#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <curl/curl.h>
@@ -23,11 +22,15 @@
 #include <iostream>
 #include <map>
 #include <sched.h>
+
+#ifdef WITH_MPRIS
 #include <sdbus-c++/IConnection.h>
 #include <sdbus-c++/Message.h>
 #include <sdbus-c++/Types.h>
 #include <sdbus-c++/VTableItems.h>
 #include <sdbus-c++/sdbus-c++.h>
+#endif
+
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -197,26 +200,29 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
   screen.PostEvent(ftxui::Event::Custom);
 }
 
-ftxui::Component create_visualizer() {
-  return ftxui::Renderer([&] {
-    std::vector<ftxui::Element> bars;
+//// Visualizer
+// ftxui::Component create_visualizer() {
+//   return ftxui::Renderer([&] {
+//     std::vector<ftxui::Element> bars;
 
-    // Get latest visualization data
-    auto viz_data = player->get_visualization_data();
+//     // Get latest visualization data
+//     auto viz_data = player->get_visualization_data();
 
-    // Create bars for visualization
-    for (size_t i = 0; i < viz_data.size(); i++) {
-      int height =
-          static_cast<int>(viz_data[i] * 8); // Scale to reasonable height
-      bars.push_back(ftxui::vbox({ftxui::text(std::string(height, '|')) |
-                                  color(ftxui::Color::Green)}));
-    }
+//     // Create bars for visualization
+//     for (size_t i = 0; i < viz_data.size(); i++) {
+//       int height =
+//           static_cast<int>(viz_data[i] * 8); // Scale to reasonable height
+//       bars.push_back(ftxui::vbox({ftxui::text(std::string(height, '|')) |
+//                                   color(ftxui::Color::Green)}));
+//     }
 
-    return hbox(std::move(bars));
-  });
-}
+//     return hbox(std::move(bars));
+//   });
+// }
 
+#ifdef WITH_MPRIS
 sdbus::IObject *g_concatenator{};
+#endif
 
 int main(int argc, char *argv[]) {
   if (argc >= 3 && std::string(argv[1]) == "--daemon") {
@@ -255,6 +261,7 @@ int main(int argc, char *argv[]) {
       }
     });
 
+#ifdef WITH_MPRIS
     sdbus::ServiceName serviceName{"org.mpris.MediaPlayer2.tuisic"};
     auto connection = sdbus::createSessionBusConnection(serviceName);
     // connection->requestName(serviceName);
@@ -431,6 +438,7 @@ int main(int argc, char *argv[]) {
     updateMetadata();
     updatePlaybackStatus();
 
+    #endif
     // keep alive
     std::this_thread::sleep_for(std::chrono::hours(24 * 365));
     return 0;
@@ -636,6 +644,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (event == Event::Character("w")) {
+        #ifdef WITH_MPRIS
           daemon_mode_active = true;
           // system(("notify-send \"Starting daemon..." + track[0].id.c_str() +
           // "\"").c_str());
@@ -653,6 +662,7 @@ int main(int argc, char *argv[]) {
             _exit(1);
           }
           screen.Exit();
+        #endif
         }
 
         return false;

@@ -4,7 +4,7 @@ libdir=${prefix}/lib
 includedir=${prefix}/include
 
 Name: Tuisic
-Description: A TUI-based online music player
+Description: A TUI Music Streaming Application 
 Version: @PROJECT_VERSION@
 Libs: -L${libdir} -lcavacore
 Cflags: -I${includedir}

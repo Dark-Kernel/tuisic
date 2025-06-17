@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Tuisic
+GenericName=Terminal Music Player
+Comment=A TUI music streaming application
+Exec=alacritty -e tuisic # Change terminal accordingly
+Icon=utilities-terminal
+Terminal=false
+Categories=AudioVideo;ConsoleOnly;Player;
+Keywords=music;terminal;streaming;
+StartupNotify=false

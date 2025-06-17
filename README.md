@@ -11,11 +11,12 @@ First app of its kind, It let's you search and play online songs from cli hassle
 
 ## Features
 - Vim motions
+- No browser, No Ads
 - Easy downloads
 - Multiple song sources
 - Playlist support
-- Copy urls
-- Add to favourites
+- Easy Sharing
+- Favourites List
 - Configuration file
 - Daemon mode (BETA, press 'w' to toggle) 
 - [MPRIS DBUS](https://wiki.archlinux.org/title/MPRIS) support ( via `playerctl` )
@@ -54,18 +55,32 @@ It fetches songs from some platforms:
 yay -S tuisic-git
 ```
 
-2. Building from source
+2. Building from source (All platforms)
 
-### Dependencies 
+### Dependencies (Linux/MacOS)
 ```sh
 sudo pacman -S curl mpv fmt yt-dlp fftw sdbus-cpp
 ```
 
-### Build, Compile & Run
+### Build Options
+| CMake Flag       | Description                       | Default |
+| ---------------- | --------------------------------- | ------- |
+| `-DWITH_MPRIS`   | Enable MPRIS (sdbus-c++) support  | ON      |
+| `-DWITH_CAVA`    | Enable Cava visualizer(NOT READY) | OFF     |
+
+
+#### Before Installation
+Update the [desktop/tuisic.desktop](./desktop/tuisic.desktop) file.
+
+```
+Exec=alacritty -e tuisic # Change terminal accordingly
+```
+
+### Build, Compile & Install
 
 ```sh
 mkdir build && cd build
-cmake ..
+cmake .. # -DWITH_MPRIS=OFF
 make
 sudo make install
 ```

@@ -1,135 +1,109 @@
 cmake_minimum_required(VERSION 3.11)
 
 project(tuisic LANGUAGES C CXX VERSION 1.0.0)
+
+option(WITH_MPRIS "Enable MPRIS support (via sdbus‑c++)" ON)
+option(WITH_CAVA  "Build CAVA visualiser"               OFF)
+
 add_executable(tuisic src/main.cpp)
 
+# git submodules
 find_package(Git REQUIRED)
 execute_process(
-    COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-find_package(sdbus-c++ REQUIRED)
-
-# include(FetchContent)
-# set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
-# FetchContent_Declare(ftxui
-#   GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-#   GIT_TAG main # Important: Specify a version or a commit hash here.
-# )
-# FetchContent_MakeAvailable(ftxui)
-
-# Try to find FTXUI installed on system
-find_package(ftxui CONFIG)
-
-if(NOT ftxui_FOUND)
-    message(STATUS "FTXUI not found, fetching it...")
-    include(FetchContent)
-    set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
-    FetchContent_Declare(ftxui
-      GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-      GIT_TAG main
-    )
-    FetchContent_MakeAvailable(ftxui)
+# ─── Platform Definitions ──────────────────────────────────────────────────────
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_compile_definitions(PLATFORM_LINUX)
+  message("Platform: Linux")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  add_compile_definitions(PLATFORM_MACOS)
+  message("Platform: MacOS")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  add_compile_definitions(PLATFORM_FREEBSD)
+  message("Platform: FreeBSD")
+elseif (WIN32)
+  add_compile_definitions(PLATFORM_WINDOWS)
+  message("Platform: Windows")
 endif()
 
- 
+# ─── MPRIS ──────────────────────────────────────────────────────────────────────
+if (WITH_MPRIS AND UNIX AND NOT APPLE AND NOT WIN32)
+  find_package(sdbus-c++ REQUIRED)
+  target_link_libraries(tuisic PRIVATE SDBusCpp::sdbus-c++)
+  target_compile_definitions(tuisic PRIVATE -DWITH_MPRIS)
+endif()
 
-# Set installation directories
-include(GNUInstallDirs)
+# ─── FTXUI ─────────────────────────────────────────────────────────────────────
+find_package(ftxui CONFIG)
+if (NOT ftxui_FOUND)
+  include(FetchContent)
+  set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+  FetchContent_Declare(ftxui
+    GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+    GIT_TAG main)
+  FetchContent_MakeAvailable(ftxui)
+endif()
 
-# Configure CAVA build options
-set(CAVA_BUILD_OPTIONS
-    -DCMAKE_C_STANDARD=11
-    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-)
-
-# Build CAVA as an external project
-include(ExternalProject)
-ExternalProject_Add(cava_external
+# ─── Optional CAVA ‑ currently OFF by default ─────────────────────────────────
+if (WITH_CAVA)
+  include(ExternalProject)
+  ExternalProject_Add(cava_external
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cava
-    CMAKE_ARGS ${CAVA_BUILD_OPTIONS}
-    INSTALL_COMMAND ""  # Skip installation of CAVA itself
-    BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/cava-prefix/src/cava-build/libcavacore.a
-)
+    CMAKE_ARGS
+      -DCMAKE_C_STANDARD=11
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    INSTALL_COMMAND "")
 
+  add_library(cavacore STATIC IMPORTED)
+  add_dependencies(cavacore cava_external)
+  set_target_properties(cavacore PROPERTIES
+    IMPORTED_LOCATION
+      ${CMAKE_CURRENT_BINARY_DIR}/cava-prefix/src/cava-build/libcavacore.a)
 
-# Cava core
-add_library(cavacore STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/cava/cavacore.c
-)
-
-
-
-set_target_properties(cavacore PROPERTIES
-    C_STANDARD 11
-    C_STANDARD_REQUIRED ON
-    IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/cava-prefix/src/cava-build/libcavacore.a
-)
-
-add_dependencies(cavacore cava_external)
-
-# Link against FFTW3
-find_package(FFTW3 REQUIRED)
-target_include_directories(cavacore PUBLIC 
+  find_package(FFTW3 REQUIRED)
+  target_include_directories(cavacore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/cava
-    ${FFTW3_INCLUDE_DIRS}
-)
-target_link_libraries(cavacore PUBLIC 
-    ${FFTW3_LIBRARIES}
-    m  # Math library
-    PRIVATE SDBusCpp::sdbus-c++
-)
+    ${FFTW3_INCLUDE_DIRS})
+  target_link_libraries(cavacore INTERFACE ${FFTW3_LIBRARIES} m)
+endif()
 
-# Find CURL package
-find_package(CURL REQUIRED)
+# ─── Core dependencies ─────────────────────────────────────────────────────────
 find_package(PkgConfig REQUIRED)
+pkg_check_modules(MPV REQUIRED mpv)
+find_package(CURL REQUIRED)
 find_package(fmt REQUIRED)
 
-# Use pkg-config to find MPV
-pkg_check_modules(MPV REQUIRED mpv)
-
-target_include_directories(tuisic 
-    PRIVATE 
-    ${MPV_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/cava
-)
-
+target_include_directories(tuisic PRIVATE ${MPV_INCLUDE_DIRS})
 target_link_libraries(tuisic
-    PRIVATE 
-    ${MPV_LIBRARIES}
-    PRIVATE fmt::fmt
-    PRIVATE CURL::libcurl
-    PRIVATE ftxui::screen
-    PRIVATE ftxui::dom
-    PRIVATE ftxui::component
-    PRIVATE cavacore
+  PRIVATE ${MPV_LIBRARIES}
+  PRIVATE fmt::fmt
+  PRIVATE CURL::libcurl
+  PRIVATE ftxui::screen ftxui::dom ftxui::component
 )
 
-# Installation configuration
-install(TARGETS tuisic
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT tuisic_runtime
-)
+if (WITH_CAVA)
+  target_link_libraries(tuisic PRIVATE cavacore)
+endif()
 
-# Additional files like configuration files, desktop entries, or man pages:
-# install(FILES config/tuisic.conf
-#     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/tuisic
-#     COMPONENT tuisic_config
-# )
+# ─── Install ───────────────────────────────────────────────────────────────────
+include(GNUInstallDirs)
+install(TARGETS tuisic RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# Optional: Desktop entry installation
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/desktop/tuisic.desktop
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
-    OPTIONAL
-)
+# install desktop file
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/desktop/tuisic.desktop
+          DESTINATION ${CMAKE_INSTALL_DATADIR}/applications OPTIONAL)
+endif()
 
-# Set version for package creation
+# ─── Packaging ─────────────────────────────────────────────────────────────────
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_CONTACT "Dark-Kernel <sumitpatel24389@gmail.com>")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A TUI Music Player")
-set(CPACK_PACKAGE_DESCRIPTION "A terminal-based online music player.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A TUI Music Streaming Application")
+set(CPACK_PACKAGE_DESCRIPTION "First of its kind, A simple TUI online music streaming application written in c++ with easy vim motions. ")
 
-# Enable packaging
 include(CPack)
+
