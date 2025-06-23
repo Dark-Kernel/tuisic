@@ -125,10 +125,10 @@ auto searchQuery(const std::string &query) {
   track_data = track_data_saavn;
   track_data_lastfm = lastfm.fetch_tracks(query);
   track_data_soundcloud = soundcloud.fetch_tracks(query);
-  for (const auto &track : track_data_lastfm) {
+  for (const auto &track : track_data_soundcloud) {
     track_data.push_back(track);
   }
-  for (const auto &track : track_data_soundcloud) {
+  for (const auto &track : track_data_lastfm) {
     track_data.push_back(track);
   }
 
@@ -526,7 +526,7 @@ int main(int argc, char *argv[]) {
       CatchEvent([&button_text, &next_playlist, &playlist_mutex, &config,
                   argv](Event event) {
         if (event == Event::Return) {
-          std::cerr << "Selected: " << selected << std::endl;
+          // std::cerr << "Selected: " << selected << std::endl;
           if (selected >= 0 && selected < track_data.size()) {
             current_source = PlaylistSource::Search;
             if (!track_data_forestfm.empty()) {
@@ -545,11 +545,17 @@ int main(int argc, char *argv[]) {
               std::thread next_tracks_thread([&]() {
                 try {
                   /* std::cerr << "Fetttchiing nextttttttttttttt"; */
-                  // system(("notify-send 'Tuisic' " + track_data[selected].id +
-                  //         track_data[selected].url)
-                  //            .c_str());
-                  next_tracks =
-                      saavn.fetch_next_tracks(track_data[selected].id);
+                  system(("notify-send 'Tuisic' " + track_data[selected].id +
+                          track_data[selected].url)
+                             .c_str());
+                if(track_data[selected].source=="soundcloud"){
+                next_tracks = soundcloud.fetch_next_tracks(track_data[selected].url);
+                }else{
+                next_tracks = saavn.fetch_next_tracks(track_data[selected].id);
+                }
+
+                  // next_tracks =
+                  //     saavn.fetch_next_tracks(track_data[selected].id);
                   std::vector<std::string> next_track_urls;
                   next_track_urls.push_back(track_data[selected].url);
                   for (const auto &track : next_tracks) {

@@ -6,6 +6,7 @@ struct Track {
     std::string artist;
     std::string url;
     std::string id;
+    std::string source;
     
     // Convert to display string for FTXUI menu
     std::string to_string() const {
