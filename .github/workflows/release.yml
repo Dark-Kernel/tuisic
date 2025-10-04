@@ -38,9 +38,9 @@ jobs:
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev
+          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev libsdbus-c++-dev
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          brew install cmake pkg-config fftw mpv curl fmt sdbus-cpp
+          brew install cmake pkg-config fftw mpv curl fmt sdbus-c++
         elif [ "$RUNNER_OS" == "Windows" ]; then
           choco install cmake
           # Note: Windows build requires vcpkg or manual dependency setup
