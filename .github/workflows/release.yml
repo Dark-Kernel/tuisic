@@ -8,16 +8,17 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false # Add this line to prevent all jobs from stopping on a single failure
       matrix:
         include:
           - os: ubuntu-latest
             target: linux-x64
             artifact_name: tuisic
             asset_name: tuisic-linux-x64
-          - os: windows-latest
-            target: windows-x64
-            artifact_name: tuisic.exe
-            asset_name: tuisic-windows-x64.exe
+          # - os: windows-latest
+          #   target: windows-x64
+          #   artifact_name: tuisic.exe
+          #   asset_name: tuisic-windows-x64.exe
           - os: macos-latest
             target: macos-x64
             artifact_name: tuisic
@@ -38,12 +39,28 @@ jobs:
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev
+          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev rapidjson-dev
+          git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
+          cd sdbus-cpp
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build .
+          sudo cmake --build . --target install
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          brew install cmake pkg-config fftw mpv curl fmt sdbus-cpp
-        elif [ "$RUNNER_OS" == "Windows" ]; then
-          choco install cmake
-          # Note: Windows build requires vcpkg or manual dependency setup
+          # Install build tools needed for libsystemd
+          brew install meson ninja libmng dbus
+          # Install other dependencies
+          brew install cmake pkg-config fftw mpv curl fmt rapidjson
+          # Manually build and install sdbus-c++ for macOS
+          git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
+          cd sdbus-cpp
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build .
+          sudo cmake --build . --target install
+        # elif [ "$RUNNER_OS" == "Windows" ]; then
+        #   choco install cmake
+        #   # Note: Windows build requires vcpkg or manual dependency setup
         fi
       shell: bash
 
@@ -114,7 +131,7 @@ jobs:
           ## Downloads
           Download the appropriate binary for your platform:
           - **Linux (x64)**: tuisic-linux-x64
-          - **Windows (x64)**: tuisic-windows-x64.exe  
+          # - **Windows (x64)**: tuisic-windows-x64.exe  
           - **macOS (Intel)**: tuisic-macos-x64
           - **macOS (Apple Silicon)**: tuisic-macos-arm64
         files: |
