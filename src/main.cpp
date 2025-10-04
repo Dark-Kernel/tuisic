@@ -221,10 +221,85 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 // }
 
 #ifdef WITH_MPRIS
+#include "mpris_handler.cpp"
+std::unique_ptr<MPRISHandler> mpris_handler;
+
+// In TUI mode initialization:
+void setupMPRISForDaemon(std::shared_ptr<MusicPlayer> player,
+                         std::vector<Track> next_tracks,
+                         int current_track_index) {
+  mpris_handler = std::make_unique<MPRISHandler>(player);
+  mpris_handler->initialize();
+  system("notify-send 'MPRIS integration initialized'");
+
+  mpris_handler->setTrackCallbacks(
+      [&]() -> std::string {
+        return next_tracks.empty() ? "" : next_tracks[current_track_index].id;
+      },
+      [&]() -> std::string {
+        return next_tracks.empty() ? "" : next_tracks[current_track_index].name;
+      },
+      [&]() -> std::string {
+        return next_tracks.empty() ? ""
+                                  : next_tracks[current_track_index].artist;
+      },
+      [&]() {
+        // Update TUI state when next track is triggered via MPRIS
+        if (current_track_index < track_data.size() - 1) {
+          // current_track_index++;
+          // current_track_index = (current_track_index + 1) %
+          // track_data.size();
+
+          current_track_index = (current_track_index + 1) % next_tracks.size();
+          // screen.PostEvent(ftxui::Event::Custom);
+        }
+        // correct logic to next track:
+        //
+        //                                             current_track_name =
+        //                                             next_tracks[current_track_indexx-1].name;
+        //                                             current_track_artist =
+        //                                             next_tracks[current_track_indexx-1].artist;
+
+        current_track = next_tracks[current_track_index-1].name;
+        current_artist = next_tracks[current_track_index-1].artist;
+        // screen.PostEvent(ftxui::Event::Custom);
+        //       current_track_index = (current_track_index + 1) %
+        //       track_data.size();
+        // player->play(track_data[current_track_index].url);
+
+        // Trigger UI refresh if needed
+      },
+      [&]() {
+        // Update TUI state when previous track is triggered via MPRIS
+        if (current_track_index > 0) {
+          // current_track_index--;
+          // current_track_index = (current_track_index - 1) %
+          // track_data.size();
+          current_track_index = (current_track_index - 1) % next_tracks.size();
+          // screen.PostEvent(ftxui::Event::Custom);
+        }
+      }
+      );
+
+  mpris_handler->startEventLoop();
+}
+
+std::unique_ptr<TUIMPRISIntegration> tui_mpris;
+#endif
+
+
+
+#ifdef WITH_MPRIS
 sdbus::IObject *g_concatenator{};
 #endif
 
 int main(int argc, char *argv[]) {
+
+#ifdef WITH_MPRIS
+      tui_mpris = std::make_unique<TUIMPRISIntegration>(track_data, current_track_index);
+      // tui_mpris->setup(player);
+#endif
+
   if (argc >= 3 && std::string(argv[1]) == "--daemon") {
     auto player = std::make_shared<MusicPlayer>();
     std::string current_track_id = argv[2];
@@ -258,6 +333,7 @@ int main(int argc, char *argv[]) {
       // Prevent division by zero and ensure valid percentage
       if (total_duration > 0) {
         progress_percentage = static_cast<int>((pos / dur) * 100.0);
+        screen.PostEvent(ftxui::Event::Custom);
       }
     });
 
@@ -570,6 +646,12 @@ int main(int argc, char *argv[]) {
                   player->create_playlist(next_track_urls);
                   current_track_index = 0;
                   player->play(next_tracks[0].url);
+
+                  
+                #ifdef WITH_MPRIS
+                  tui_mpris->setup(player);
+                #endif
+
                   screen.PostEvent(Event::Custom);
                 } catch (const std::exception &e) {
                   std::cerr << e.what() << std::endl;
