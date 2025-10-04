@@ -35,8 +35,7 @@ public:
   void initialize() {
     sdbus::ServiceName serviceName{"org.mpris.MediaPlayer2.tuisic"};
     connection = sdbus::createSessionBusConnection(serviceName);
-    // risky
-    // connection->requestName(serviceName);
+//  connection->requestName(serviceName);
     sdbus::ObjectPath objectPath{"/org/mpris/MediaPlayer2"};
     object = sdbus::createObject(*connection, std::move(objectPath));
 
@@ -164,10 +163,54 @@ private:
                                               auto reply = call.createReply();
                                               reply.send();
                                             },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"Previous"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [this](sdbus::MethodCall call) {
+                                              // player->previous_track();
+                                              if (on_previous_track)
+                                                on_previous_track();
+                                              updateMetadata();
+                                              updatePlaybackStatus();
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"Seek"},
+                                            sdbus::Signature{"x"},
+                                            {"Offset"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [this](sdbus::MethodCall call) {
+                                              // int64_t offset;
+                                              // call >> offset;
+                                              // double seek_seconds = offset / 1000000.0;
+                                              // player->seek(player->get_position() + seek_seconds);
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
+                                            {}},
+                    sdbus::MethodVTableItem{sdbus::MethodName{"SetPosition"},
+                                            sdbus::Signature{"ox"},
+                                            {"TrackId", "Position"},
+                                            sdbus::Signature{""},
+                                            {},
+                                            [this](sdbus::MethodCall call) {
+                                              // sdbus::ObjectPath trackId;
+                                              // int64_t position;
+                                              // call >> trackId >> position;
+                                              // double pos_seconds = position / 1000000.0;
+                                              // player->seek(pos_seconds);
+                                              auto reply = call.createReply();
+                                              reply.send();
+                                            },
                                             {}})
         .forInterface(interfaceName2);
 
-    // MediaPlayer2 properties
+    // MediaPlayer22 properties
     object
         ->addVTable(sdbus::registerProperty("Identity").withGetter([]() {
           return "tuisic";
@@ -202,7 +245,9 @@ private:
             sdbus::registerProperty("CanSeek").withGetter(
                 []() { return true; }),
             sdbus::registerProperty("Position").withGetter([this]() {
-              return int64_t(player->get_position() * 1000000);
+             // return int64_t(player->get_position() * 1000000);
+              return int64_t(current_position * 1000000);
+
             }),
             sdbus::registerProperty("Volume").withGetter([]() { return 1.0; }),
             sdbus::registerProperty("Metadata").withGetter([this]() {
@@ -241,6 +286,8 @@ private:
     metadata["position"] = sdbus::Variant(int64_t(player->get_position() * 1000000));
     metadata["mpris:length"] =
         sdbus::Variant(int64_t(player->get_duration() * 1000000));
+        //sdbus::Variant(int64_t(total_duration * 1000000));
+
 
     return metadata;
   }
@@ -322,4 +369,3 @@ public:
     // Destructor handles cleanup automatically
   }
 };
-

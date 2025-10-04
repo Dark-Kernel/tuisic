@@ -25,8 +25,10 @@ class Saavn {
                 track.id = result["id"].GetString();
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["primary_artists"][0]["name"].GetString();
+                track.source = "saavn";
                 tracks.push_back(track);
             }
+            // std::cout << "NEXT TRACKS \n" << tracks[0].name << std::endl;
             return tracks;
         }
 
@@ -39,6 +41,7 @@ class Saavn {
                 track.name = result["title"].GetString();
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["artists"][0]["name"].GetString();
+                track.source = "saavn";
                 tracks.push_back(track);
             }
             return tracks;
@@ -77,6 +80,7 @@ class Saavn {
                             }
                         }
                     }
+                    track.source = "saavn";
                     tracks.push_back(track);
                 }
             }
@@ -141,30 +145,51 @@ class Saavn {
             }
 
             std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + std::string(curl_easy_escape(curl, id.c_str(), id.length()));
+            // std::cout << url << std::endl;
             curl_easy_cleanup(curl);
             std::string readBuffer = make_request(url);
+            // std::cout << readBuffer  << readBuffer.size()<< std::endl;
+
+            if(readBuffer.size() == 2) {
+                // std::cout << "in fi";
+                std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=song&entity_language=english";
+                curl_easy_cleanup(curl);
+                std::string readBuffer = make_request(url);
+                return extractTrendingTracks(readBuffer);
+            }
             return extractNextTracks(readBuffer);
         }
 
 
 };
 
-/* int main(int argc, char *argv[]) { */
-/*     Saavn saavn; */
-/*     /1* auto tracks = saavn.fetch_tracks("sugarcane"); *1/ */
-/*     std::string search_query = "bones"; */
-/*     std::vector<Track> tracks = saavn.fetch_tracks(search_query); */
+//int main(int argc, char *argv[]) {
+//    Saavn saavn;
+//    //auto tracks = saavn.fetch_tracks("sugarcane");
+//    std::string search_query = "bones";
+//    std::vector<Track> tracks = saavn.fetch_tracks(search_query);
 
-/*     for (const auto &track : tracks) { */
-/*         std::cout << "Title: " << track.name << "\n"; */
-/*         std::cout << "URL: " << track.url << "\n"; */
-/*         std::cout << "Primary Artists: " << track.artist << "\n"; */
-/*         /1* for (const auto& artist : track.artist) { *1/ */
-/*         /1*     std::cout << artist << ""; *1/ */
-/*         /1* } *1/ */
-/*         std::cout << "\n\n"; */
-/*     } */
-/*     return 0; */
+//    for (const auto &track : tracks) {
+//        std::cout << "Title: " << track.name << "\n";
+//        std::cout << "URL: " << track.url << "\n";
+//        std::cout << "Primary Artists: " << track.artist << "\n";
+//         for (const auto& artist : track.artist) {
+//             std::cout << artist << "";
+//         }
+//        std::cout << "\n\n";
+//    }
+//    std::cout << "NEXT TRACKS \n";
+//    std::vector<Track> next_tracks = saavn.fetch_next_tracks(tracks[0].id);
 
-/*     return 0; */
-/* } */
+//    for (const auto &track : next_tracks) {
+//        std::cout << "Title: " << track.name << "\n";
+//        std::cout << "URL: " << track.url << "\n";
+//        std::cout << "Primary Artists: " << track.artist << "\n";
+//         for (const auto& artist : track.artist) {
+//             std::cout << artist << "";
+//         }
+//        std::cout << "\n\n";
+//    }
+//    return 0;
+//   // return 0;
+//}

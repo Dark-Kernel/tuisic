@@ -1,4 +1,5 @@
 #include <curl/curl.h>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <regex>
@@ -27,6 +28,8 @@ class Lastfm {
                 track.url = match[1];
                 track.name = match[2];
                 track.artist = match[3];
+                track.id = track.name;
+                track.source = "lastfm";
                 tracks.push_back(track);
             }
 
@@ -68,3 +71,14 @@ class Lastfm {
         }
 
 };
+
+
+// int main (int argc, char *argv[]) {
+//     Lastfm lastfm;
+//     std::vector<Track> tracks = lastfm.fetch_tracks("kali kali zulfon");
+//     for (const auto& track : tracks) {
+//         std::cout << "Track: " << track.name << ", Artist: " << track.artist << ", URL: " << track.url << std::endl;
+//     }
+    
+//     return 0;
+// }
