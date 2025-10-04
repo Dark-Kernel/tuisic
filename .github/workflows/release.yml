@@ -38,9 +38,20 @@ jobs:
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev
+          sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev libsdbus-c++-dev
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          brew install cmake pkg-config fftw mpv curl fmt sdbus-cpp
+          brew install cmake pkg-config fftw mpv curl fmt
+          # Manually build and install sdbus-c++ for macOS
+          git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
+          cd sdbus-cpp
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DSDBUSCPP_BUILD_LIBSYSTEMD=ON
+          make -j$(sysctl -n hw.ncpu)
+          sudo make install
+          # Fix for missing fftw3.h header on some macOS runners
+          if [ -d "$(brew --prefix)/include" ] && [ ! -f "$(brew --prefix)/include/fftw3.h" ]; then
+            sudo ln -s /usr/local/include/fftw3.h "$(brew --prefix)/include/fftw3.h"
+          fi
         elif [ "$RUNNER_OS" == "Windows" ]; then
           choco install cmake
           # Note: Windows build requires vcpkg or manual dependency setup
@@ -123,3 +134,4 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
