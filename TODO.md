@@ -6,5 +6,5 @@
 - [ ] Multi souce lyrics
 - [X] Auto Play next song.
 - [X] Setup cavacore
-- [ ] Background Play (Daemon mode)
-- [ ] Expose to MPRIS dbus
+- [X] Background Play (Daemon mode)
+- [X] Expose to MPRIS dbus
