@@ -1,4 +1,4 @@
-#include "Track.h"
+#include "../common/Track.h"
 #include "rapidjson/document.h"
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/filereadstream.h"

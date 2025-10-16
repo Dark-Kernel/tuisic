@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Track.h"
-#include "config.hpp"
+#include "../common/Track.h"
+#include "../core/config/config.hpp"
 // #include "visualizer.hpp"
 #include <algorithm>
 #include <atomic>

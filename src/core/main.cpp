@@ -1,11 +1,11 @@
 #include "ftxui/dom/elements.hpp"
-#include "justmusic.cpp"
-#include "lastfm.cpp"
-#include "localStorage.cpp"
-#include "player.cpp"
-#include "playlist_handler.cpp"
-#include "saavn.cpp"
-#include "soundcloud.cpp"
+#include "../services/justmusic/justmusic.cpp"
+#include "../services/lastfm/lastfm.cpp"
+#include "../storage/localStorage.cpp"
+#include "../audio/player.cpp"
+#include "../storage/playlist_handler.cpp"
+#include "../services/saavn/saavn.cpp"
+#include "../services/soundcloud/soundcloud.cpp"
 #include <cstdio>
 #include <cstdlib>
 #include <curl/curl.h>
@@ -221,7 +221,7 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 // }
 
 #ifdef WITH_MPRIS
-#include "mpris_handler.cpp"
+#include "../audio/mpris_handler.cpp"
 std::unique_ptr<MPRISHandler> mpris_handler;
 
 // In TUI mode initialization:

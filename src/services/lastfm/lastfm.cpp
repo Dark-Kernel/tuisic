@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <regex>
-#include "Track.h"
+#include "../../common/Track.h"
 #include <mpv/client.h>
 
 class Lastfm {

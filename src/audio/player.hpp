@@ -1,18 +1,15 @@
-#ifndef PLAYER_HPP
-#define PLAYER_HPP
+#pragma once
 
 #include <mpv/client.h>
 #include <string>
 #include <vector>
 #include <memory>
 
-// Class declaration for MusicPlayer
 class MusicPlayer {
 public:
     MusicPlayer();
     ~MusicPlayer();
 
-    // Player controls
     void play(const std::string& url);
     void pause();
     void resume();
@@ -22,8 +19,6 @@ public:
     int get_volume() const;
     double get_position() const;
     double get_duration() const;
-
-    // Playback state
     bool is_playing() const;
 
 private:
@@ -33,6 +28,4 @@ private:
     mpv_handle* mpv;
     bool playing;
 };
-
-#endif // PLAYER_HPP
 

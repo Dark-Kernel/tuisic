@@ -6,7 +6,7 @@
 #include <vector>
 #include <regex>
 #include <rapidjson/document.h>
-#include "Track.h"
+#include "../../common/Track.h"
 
 class SoundCloud{
     public: 

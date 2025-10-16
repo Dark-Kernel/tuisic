@@ -5,7 +5,7 @@ project(tuisic LANGUAGES C CXX VERSION 1.0.0)
 option(WITH_MPRIS "Enable MPRIS support (via sdbus‑c++)" ON)
 option(WITH_CAVA  "Build CAVA visualiser"               OFF)
 
-add_executable(tuisic src/main.cpp)
+add_executable(tuisic src/core/main.cpp)
 
 # git submodules
 find_package(Git REQUIRED)

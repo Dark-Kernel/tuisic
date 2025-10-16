@@ -1,10 +1,10 @@
-#ifndef MAIN_HPP
-#define MAIN_HPP
+#pragma once
 
-#include "fetch.hpp"
-#include "justmusic.hpp"
-#include "player.hpp"
-#include "soundcloud.hpp"
+#include "../services/lastfm/lastfm.hpp"
+#include "../services/justmusic/justmusic.hpp"
+#include "../audio/player.hpp"
+#include "../services/soundcloud/soundcloud.hpp"
+#include "../common/Track.h"
 #include <curl/curl.h>
 #include <curl/urlapi.h>
 #include <ftxui/component/component.hpp> // for Renderer, Input, Menu, etc.
@@ -48,6 +48,4 @@ extern std::map<std::string, std::vector<std::string>> ascii_art;
 std::vector<std::string> get_track_ascii_art(const Track &track);
 std::vector<std::string> fetch_main(const std::string &query);
 void switch_playlist_source(const std::vector<Track> &new_tracks);
-
-#endif // MAIN_HPP
 
