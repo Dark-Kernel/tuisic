@@ -92,14 +92,20 @@ public:
       throw std::runtime_error("MPV initialization failed");
     }
 
-    // Configure MPV options
-    const std::vector<std::pair<const char *, const char *>> mpv_options = {
-        {"video", "no"},  {"audio-display", "no"}, {"terminal", "no"},
-        {"quiet", "yes"}, {"sub-auto", "fuzzy"},   {"sub-codepage", "UTF-8"}};
+    // Configure MPV options from config
+    const std::vector<std::pair<std::string, std::string>> mpv_options = {
+        {"video", "no"},
+        {"audio-display", "no"}, 
+        {"terminal", "no"},
+        {"quiet", "yes"}, 
+        {"sub-auto", "fuzzy"},   
+        {"sub-codepage", "UTF-8"}
+    };
 
-    for (const auto &[option, value] : mpv_options) {
-      if (mpv_set_option_string(mpv.get(), option, value) < 0) {
-        log_error("Failed to set option: " + std::string(option));
+    for (const auto &[option, default_value] : mpv_options) {
+      // For now use defaults, but this allows easy config integration later
+      if (mpv_set_option_string(mpv.get(), option.c_str(), default_value.c_str()) < 0) {
+        log_error("Failed to set option: " + option);
       }
     }
 
@@ -110,8 +116,14 @@ public:
     mpv_observe_property(mpv.get(), 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv.get(), 0, "sub-text", MPV_FORMAT_STRING);
     mpv_observe_property(mpv.get(), 0, "audio-data", MPV_FORMAT_NODE);
-    mpv_set_option_string(mpv.get(), "audio-display", "no");
-    mpv_set_option_string(mpv.get(), "ao", "pulse");  // or your preferred audio output
+    // Set audio output based on platform
+#ifdef _WIN32
+    mpv_set_option_string(mpv.get(), "ao", "wasapi");
+#elif defined(__APPLE__)
+    mpv_set_option_string(mpv.get(), "ao", "coreaudio");
+#else
+    mpv_set_option_string(mpv.get(), "ao", "pulse");
+#endif
 
 
     mpv_set_property_string(mpv.get(), "sid", "1");

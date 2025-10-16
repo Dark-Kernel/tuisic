@@ -1,4 +1,5 @@
 #include "../common/Track.h"
+#include "../common/paths.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/filereadstream.h"
@@ -7,6 +8,7 @@
 #include <iostream>
 #include <ostream>
 #include <vector>
+#include <filesystem>
 
 void saveData(const std::vector<Track> &recentlyPlayed,
               const std::vector<Track> &favorites_tracks) {
@@ -37,7 +39,10 @@ void saveData(const std::vector<Track> &recentlyPlayed,
     data.AddMember("favorites", favoritesArray, allocator);
 
     // Write to file
-    FILE* outFile = fopen("config.json", "wb");
+    std::string data_dir = paths::get_data_dir();
+    paths::ensure_directory_exists(data_dir);
+    std::string tracks_file = data_dir + "/tracks.json";
+    FILE* outFile = fopen(tracks_file.c_str(), "wb");
     if (!outFile) {
         std::cerr << "Failed to open file for writing" << std::endl;
         return;
@@ -54,9 +59,11 @@ void saveData(const std::vector<Track> &recentlyPlayed,
 
 bool loadData(std::vector<Track> &recentlyPlayed,
               std::vector<Track> &favorites_tracks) {
-    FILE* inFile = fopen("config.json", "rb");
+    std::string data_dir = paths::get_data_dir();
+    std::string tracks_file = data_dir + "/tracks.json";
+    FILE* inFile = fopen(tracks_file.c_str(), "rb");
     if (!inFile) {
-        std::cerr << "Failed to open config file" << std::endl;
+        std::cerr << "Failed to open tracks file" << std::endl;
         return false;
     }
 

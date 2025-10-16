@@ -8,8 +8,7 @@
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-
-namespace fs = std::filesystem;
+#include "../../common/paths.hpp"
 
 class Config {
 private:
@@ -21,11 +20,8 @@ private:
     config.SetObject();
     auto &allocator = config.GetAllocator();
 
-    const char *home = getenv("HOME");
-    std::string home_dir = home ? home : "/tmp";
-
     rapidjson::Value downloads(rapidjson::kObjectType);
-    std::string default_music_path = home_dir + "/Music";
+    std::string default_music_path = paths::get_music_dir();
     downloads.AddMember("path",
                         rapidjson::Value(default_music_path.c_str(), allocator),
                         allocator);
@@ -46,6 +42,26 @@ private:
     player.AddMember("volume", 100, allocator);
     player.AddMember("subtitle_enabled", true, allocator);
     player.AddMember("repeat_enabled", false, allocator);
+    
+    // MPV-specific settings
+    rapidjson::Value mpv_options(rapidjson::kObjectType);
+    mpv_options.AddMember("video", "no", allocator);
+    mpv_options.AddMember("audio-display", "no", allocator);
+    mpv_options.AddMember("terminal", "no", allocator);
+    mpv_options.AddMember("quiet", "yes", allocator);
+    mpv_options.AddMember("sub-auto", "fuzzy", allocator);
+    mpv_options.AddMember("sub-codepage", "UTF-8", allocator);
+    
+    // Platform-specific audio output defaults
+#ifdef _WIN32
+    mpv_options.AddMember("ao", "wasapi", allocator);
+#elif defined(__APPLE__)
+    mpv_options.AddMember("ao", "coreaudio", allocator);
+#else
+    mpv_options.AddMember("ao", "pulse", allocator);
+#endif
+    
+    player.AddMember("mpv_options", mpv_options, allocator);
     config.AddMember("player", player, allocator);
 
     // UI section
@@ -59,26 +75,17 @@ private:
     rapidjson::Value cache(rapidjson::kObjectType);
     cache.AddMember("enabled", true, allocator);
     cache.AddMember("max_size_mb", 100, allocator);
-    cache.AddMember(
-        "path",
-        rapidjson::Value(
-            (std::string(getenv("HOME")) + "/.cache/musicplayer").c_str(),
-            allocator),
-        allocator);
+    std::string cache_path = paths::get_cache_dir();
+    cache.AddMember("path", rapidjson::Value(cache_path.c_str(), allocator), allocator);
     config.AddMember("cache", cache, allocator);
 
     // Create directories if they don't exist
     /* std::filesystem::create_directories( */
     /*     std::filesystem::path(get_download_path()).parent_path() */
     /* ); */
-    namespace fs = std::filesystem;
-
-    try {
-      fs::create_directories(default_music_path);
-    } catch (const std::exception &e) {
-      std::cerr << "Failed to create download directory: " << e.what()
-                << std::endl;
-    }
+    // Create necessary directories
+    paths::ensure_directory_exists(default_music_path);
+    paths::ensure_directory_exists(cache_path);
 
     save_config();
   }
@@ -120,13 +127,11 @@ private:
   }
 
 public:
-  Config(const std::string &path = std::string(getenv("HOME")) +
-                                   "/.config/tuisic/config.json")
-      : config_path(path) {
+  Config(const std::string &path = "")
+      : config_path(path.empty() ? (paths::get_config_dir() + "/config.json") : path) {
     try {
       // Create config directory if it doesn't exist
-      std::filesystem::create_directories(
-          std::filesystem::path(config_path).parent_path());
+      paths::ensure_directory_exists(std::filesystem::path(config_path).parent_path());
 
       // Try to read existing config
       std::ifstream file(config_path);
@@ -192,6 +197,31 @@ public:
 
   bool get_notifications_enabled() const {
     return get_bool_value("ui", "show_notifications", true);
+  }
+
+  // MPV settings getters
+  std::string get_mpv_option(const std::string& option, const std::string& default_value = "") const {
+    std::lock_guard<std::mutex> lock(config_mutex);
+    if (config.HasMember("player") && config["player"].HasMember("mpv_options") &&
+        config["player"]["mpv_options"].HasMember(option.c_str()) &&
+        config["player"]["mpv_options"][option.c_str()].IsString()) {
+      return config["player"]["mpv_options"][option.c_str()].GetString();
+    }
+    return default_value;
+  }
+
+  std::string get_audio_output() const {
+#ifdef _WIN32
+    return get_mpv_option("ao", "wasapi");
+#elif defined(__APPLE__)
+    return get_mpv_option("ao", "coreaudio");
+#else
+    return get_mpv_option("ao", "pulse");
+#endif
+  }
+
+  std::string get_data_dir() const {
+    return paths::get_data_dir();
   }
 
   void set_download_path(const std::string &path) {
