@@ -52,12 +52,12 @@ jobs:
           # Install other dependencies
           brew install cmake pkg-config fftw mpv curl fmt rapidjson
           # Manually build and install sdbus-c++ for macOS
-          git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
-          cd sdbus-cpp
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DSDBUSCPP_BUILD_CODEGEN=ON
-          cmake --build .
-          sudo cmake --build . --target install
+          #git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
+          #cd sdbus-cpp
+          #mkdir build && cd build
+          #cmake .. -DCMAKE_BUILD_TYPE=Release -DSDBUSCPP_BUILD_CODEGEN=ON
+          #cmake --build .
+          #sudo cmake --build . --target install
         # elif [ "$RUNNER_OS" == "Windows" ]; then
         #   choco install cmake
         #   # Note: Windows build requires vcpkg or manual dependency setup
@@ -69,7 +69,7 @@ jobs:
         mkdir build
         cd build
         if [ "${{ matrix.target }}" == "macos-arm64" ]; then
-          cmake .. -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=Release
+          cmake .. -DWITH_MPRIS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=Release
         else
           cmake .. -DCMAKE_BUILD_TYPE=Release
         fi
