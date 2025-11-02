@@ -223,6 +223,7 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 #ifdef WITH_MPRIS
 #include "../audio/mpris_handler.cpp"
 std::unique_ptr<MPRISHandler> mpris_handler;
+bool is_mpris_active = false;
 
 // In TUI mode initialization:
 void setupMPRISForDaemon(std::shared_ptr<MusicPlayer> player,
@@ -666,7 +667,10 @@ int main(int argc, char *argv[]) {
 
                   
                 #ifdef WITH_MPRIS
-                  tui_mpris->setup(player);
+                  if(!is_mpris_active){
+                      tui_mpris->setup(player);
+                      is_mpris_active = true;
+                  }
                 #endif
 
                   screen.PostEvent(Event::Custom);
