@@ -112,6 +112,18 @@ jobs:
       with:
         path: ./artifacts
 
+    - name: Prepare release assets
+      run: |
+        # Rename artifacts to have unique names with platform identifiers
+        mkdir -p release-assets
+        mv artifacts/tuisic-linux-x64/tuisic release-assets/tuisic-linux-x64
+        mv artifacts/tuisic-macos-x64/tuisic release-assets/tuisic-macos-x64
+        mv artifacts/tuisic-macos-arm64/tuisic release-assets/tuisic-macos-arm64
+        # Make all binaries executable
+        chmod +x release-assets/*
+        # List files for debugging
+        ls -lh release-assets/
+
     - name: Generate changelog
       id: changelog
       run: |
@@ -139,14 +151,16 @@ jobs:
         body: |
           ## Changes
           ${{ steps.changelog.outputs.changelog }}
-          
+
           ## Downloads
           Download the appropriate binary for your platform:
           - **Linux (x64)**: tuisic-linux-x64
           - **macOS (Intel)**: tuisic-macos-x64
           - **macOS (Apple Silicon)**: tuisic-macos-arm64
         files: |
-          artifacts/*/tuisic*
+          release-assets/tuisic-linux-x64
+          release-assets/tuisic-macos-x64
+          release-assets/tuisic-macos-arm64
         draft: false
         prerelease: false
       env:
