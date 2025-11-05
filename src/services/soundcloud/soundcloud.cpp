@@ -7,6 +7,7 @@
 #include <regex>
 #include <rapidjson/document.h>
 #include "../../common/Track.h"
+#include "../../common/notification.hpp"
 
 class SoundCloud{
     public: 
@@ -137,7 +138,8 @@ class SoundCloud{
             rapidjson::Document document;
             document.Parse(j.c_str());
             if (document.HasParseError()) {
-                std::cerr << "JSON parsing error: " << document.GetParseError() << std::endl;
+                //std::cerr << "JSON parsing error: " << document.GetParseError() << std::endl;
+                notifications::send("JSON parsing error: " + std::to_string(document.GetParseError()));
             }
 
             if (document.HasMember("id") && document["id"].IsInt64()) {
@@ -166,7 +168,8 @@ class SoundCloud{
             document.Parse(j.c_str());
 
             if(document.HasParseError()) {
-                std::cerr << "JSON parsing error: " << document.GetParseError() << std::endl;
+                // std::cerr << "JSON parsing error: " << document.GetParseError() << std::endl;
+                notifications::send("JSON parsing error: " + std::to_string(document.GetParseError()));
             }
 
             if(document.HasMember("collection") && document["collection"].IsArray()) {

@@ -9,6 +9,7 @@
 #include <ostream>
 #include <vector>
 #include <filesystem>
+#include "../common/notification.hpp"
 
 void saveData(const std::vector<Track> &recentlyPlayed,
               const std::vector<Track> &favorites_tracks) {
@@ -44,7 +45,8 @@ void saveData(const std::vector<Track> &recentlyPlayed,
     std::string tracks_file = data_dir + "/tracks.json";
     FILE* outFile = fopen(tracks_file.c_str(), "wb");
     if (!outFile) {
-        std::cerr << "Failed to open file for writing" << std::endl;
+        // std::cerr << "Failed to open file for writing" << std::endl;
+        notifications::send("Failed to open file for writing");
         return;
     }
 
@@ -63,7 +65,8 @@ bool loadData(std::vector<Track> &recentlyPlayed,
     std::string tracks_file = data_dir + "/tracks.json";
     FILE* inFile = fopen(tracks_file.c_str(), "rb");
     if (!inFile) {
-        std::cerr << "Failed to open tracks file" << std::endl;
+        // std::cerr << "Failed to open tracks file" << std::endl;
+        notifications::send("Failed to open tracks file");
         return false;
     }
 
@@ -74,7 +77,8 @@ bool loadData(std::vector<Track> &recentlyPlayed,
     fclose(inFile);
 
     if (doc.HasParseError()) {
-        std::cerr << "JSON parse error" << std::endl;
+        // std::cerr << "JSON parse error" << std::endl;
+        notifications::send("JSON parse error");
         return false;
     }
 

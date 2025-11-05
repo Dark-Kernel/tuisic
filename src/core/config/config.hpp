@@ -190,7 +190,7 @@ public:
   }
 
   bool get_subtitle_enabled() const {
-    return get_bool_value("player", "subtitle_enabled", true);
+    return get_bool_value("player", "subtitle_enabled", false);
   }
 
   int get_volume() const { return get_int_value("player", "volume", 100); }

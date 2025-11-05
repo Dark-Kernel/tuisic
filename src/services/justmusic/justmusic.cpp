@@ -4,6 +4,7 @@
 #include <regex>
 #include <string>
 #include <vector>
+#include "../../common/notification.hpp"
 
 class Justmusic {
 public:
@@ -85,7 +86,8 @@ public:
           tracks.push_back(track);
           // std::cout << tracks.back().url << std::endl;
         } else {
-          std::cerr << "Not found at " << i << std::endl;
+          // std::cerr << "Not found at " << i << std::endl;
+            notifications::send("Not found at " + std::to_string(i));
         }
       }
     }

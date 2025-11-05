@@ -2,6 +2,7 @@
 
 #include "../common/Track.h"
 #include "../core/config/config.hpp"
+#include "../common/notification.hpp"
 // #include "visualizer.hpp"
 #include <algorithm>
 #include <atomic>
@@ -67,7 +68,8 @@ private:
 
   // Logging utility
   void log_error(const std::string &message) {
-    std::cerr << "[MusicPlayer Error] " << message << std::endl;
+    // std::cerr << "[MusicPlayer Error] " << message << std::endl;
+      notifications::send("[MusicPlayer Error] " + message);
   }
 
   static size_t write_callback(void *ptr, size_t size, size_t nmemb,
@@ -223,8 +225,9 @@ public:
       const char *cmd[] = {"loadfile", playlist[0].c_str(), NULL};
       int result = mpv_command(mpv.get(), cmd);
       if (result < 0) {
-        std::cerr << "Failed to load first track. Error code: " << result
-                  << std::endl;
+        // std::cerr << "Failed to load first track. Error code: " << result
+        //           << std::endl;
+          notifications::send("Failed to load first track. Error code: " + std::to_string(result));
         return;
       }
     }
@@ -372,7 +375,7 @@ public:
         // -x: Extract audio
         // --audio-format mp3: Convert to MP3
         // -o: Output template
-        std::string command = "yt-dlp -x --audio-format mp3 -o \"" +
+        std::string command = "yt-dlp -q -x --audio-format mp3 -o \"" +
                               final_path + "\" \"" + url + "\"";
 
         /* std::string command = */
@@ -387,14 +390,15 @@ public:
         }
 
         // Notify completion
-        system(
-            ("notify-send \"Download completed: " + final_path + "\"").c_str());
+        // system(("notify-send \"Download completed: " + final_path + "\"").c_str());
+        notifications::send_download_complete("" + final_path);
 
       } catch (const std::exception &e) {
         log_error(e.what());
-        system(
-            ("notify-send \"Download failed: " + std::string(e.what()) + "\"")
-                .c_str());
+        // system(
+        //     ("notify-send \"Download failed: " + std::string(e.what()) + "\"")
+        //         .c_str());
+        notifications::send_download_failed("" + std::string(e.what()));
       }
 
       is_downloading = false;
@@ -532,7 +536,7 @@ private:
             // visualization_data = visualizer->process(audio_buffer);
         }
          // In the audio data handling section:
-std::cerr << "Audio data received: " << num_samples << " samples" << std::endl;
+// std::cerr << "Audio data received: " << num_samples << " samples" << std::endl;
 // std::cerr << "Visualization data size: " << visualization_data.size() << std::endl;
 
 

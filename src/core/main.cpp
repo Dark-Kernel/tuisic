@@ -35,6 +35,8 @@
 #include <unistd.h>
 #include <vector>
 
+#include "../common/notification.hpp"
+
 // Data in string to render in UI
 std::vector<std::string> track_strings;
 std::vector<std::string> home_track_strings;
@@ -231,7 +233,9 @@ void setupMPRISForDaemon(std::shared_ptr<MusicPlayer> player,
                          int current_track_index) {
   mpris_handler = std::make_unique<MPRISHandler>(player);
   mpris_handler->initialize();
-  system("notify-send 'MPRIS integration initialized'");
+  //system("notify-send 'MPRIS integration initialized'");
+  notifications::send("MPRIS integration initialized");
+
 
   mpris_handler->setTrackCallbacks(
       [&]() -> std::string {
@@ -385,7 +389,8 @@ int main(int argc, char *argv[]) {
      };
 
      auto updateMetadata = [&]() {
-         system(("notify-send 'Tuisic' 'Updating metadata'"));
+         //system(("notify-send 'Tuisic' 'Updating metadata'"));
+         notifications::send("updating songs");
        std::map<std::string, sdbus::Variant> properties;
        properties["Metadata"] = sdbus::Variant(getMetadata());
        g_concatenator->emitPropertiesChangedSignal(interfaceName2);
@@ -524,6 +529,9 @@ int main(int argc, char *argv[]) {
   }
   curl_global_init(CURL_GLOBAL_ALL);
   auto config = std::make_shared<Config>();
+
+  // Initialize notification system with config
+  notifications::init(config.get());
 
   using namespace ftxui;
 
@@ -675,7 +683,8 @@ int main(int argc, char *argv[]) {
 
                   screen.PostEvent(Event::Custom);
                 } catch (const std::exception &e) {
-                  std::cerr << e.what() << std::endl;
+                  // std::cerr << e.what() << std::endl;
+                    notifications::send("Error: " + std::string(e.what()));
                 }
               });
               next_tracks_thread.detach();
@@ -695,19 +704,21 @@ int main(int argc, char *argv[]) {
             std::string is_wayland = getenv("XDG_SESSION_TYPE");
             if (is_wayland == "wayland") {
               system(("echo \"" + url + "\" | wl-copy").c_str());
-              system(("notify-send \"Copied URL: " + url + "\"").c_str());
-              std::cout << "Copied URL: " << url << std::endl;
+              //system(("notify-send \"Copied URL: " + url + "\"").c_str());
+              notifications::send_url_copied();
+              //std::cout << "Copied URL: " << url << std::endl;
               return true;
             }
-            system(
-                ("echo \"" + url + "\" | xclip -selection clipboard").c_str());
-            system(("notify-send \"Copied URL: " + url + "\"").c_str());
-            std::cout << "Copied URL: " << url << std::endl;
+            system(("echo \"" + url + "\" | xclip -selection clipboard").c_str());
+            //system(("notify-send \"Copied URL: " + url + "\"").c_str());
+            notifications::send_url_copied();
+            //std::cout << "Copied URL: " << url << std::endl;
             return true;
           }
         }
         if (event == Event::Character('L')) {
-          std::cerr << "pressed L" << std::endl;
+          //std::cerr << "pressed L" << std::endl;
+            notifications::send("toggle subtitles");
           player->toggle_subtitles();
         }
 
@@ -732,20 +743,24 @@ int main(int argc, char *argv[]) {
             // Start download
             if (player->download_track(track_data[selected].url, path,
                                        current_song)) {
-              system(("notify-send \"Started downloading: " +
-                      track_data[selected].name + "\"")
-                         .c_str());
+              // system(("notify-send \"Started downloading: " +
+              //         track_data[selected].name + "\"")
+              //            .c_str());
+                notifications::send_download_started("" + track_data[selected].name);
             } else {
-              system(("notify-send \"Failed to start download: " +
-                      track_data[selected].name + "\"")
-                         .c_str());
+              // system(("notify-send \"Failed to start download: " +
+              //         track_data[selected].name + "\"")
+              //            .c_str());
+                notifications::send_download_failed("" + track_data[selected].name);
+              
             }
           }
           return true;
         }
         if (event == Event::Character('p')) {
           std::string some = config->get_download_path();
-          system(("notify-send \"Download path: " + some + "\"").c_str());
+          //system(("notify-send \"Download path: " + some + "\"").c_str());
+          notifications::send("Download path: " + some);
         }
 
         if (event == Event::Character('r')) {
@@ -756,7 +771,8 @@ int main(int argc, char *argv[]) {
         #ifdef WITH_MPRIS
           daemon_mode_active = true;
           //system(("notify-send \"Starting daemon..." + track[0].id.c_str() + "\"").c_str());
-          system(("notify-send 'Starting daemon...'"));
+          //system(("notify-send 'Starting daemon...'"));
+          notifications::send("Starting daemon...");
 
 
           std::string url = player->get_current_track();
