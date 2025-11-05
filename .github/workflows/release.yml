@@ -47,18 +47,17 @@ jobs:
           cmake --build .
           sudo cmake --build . --target install
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          # Install build tools needed for libsystemd
-          brew install meson ninja libmng dbus
           # Install other dependencies
           brew install cmake pkg-config fftw mpv curl fmt rapidjson
-          export PKG_CONFIG_PATH="/usr/local/lib:/opt/homebrew/lib:$PKG_CONFIG_PATH"
-          # Manually build and install sdbus-c++ for macOS
-          #git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
-          #cd sdbus-cpp
-          #mkdir build && cd build
-          #cmake .. -DCMAKE_BUILD_TYPE=Release -DSDBUSCPP_BUILD_CODEGEN=ON
-          #cmake --build .
-          #sudo cmake --build . --target install
+
+          # Set environment variables for Homebrew paths
+          # Detect Homebrew prefix (Apple Silicon uses /opt/homebrew, Intel uses /usr/local)
+          BREW_PREFIX=$(brew --prefix)
+          echo "HOMEBREW_PREFIX=${BREW_PREFIX}" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=${BREW_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/opt/curl/lib/pkgconfig:${BREW_PREFIX}/opt/fmt/lib/pkgconfig" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=${BREW_PREFIX}" >> $GITHUB_ENV
+          echo "LDFLAGS=-L${BREW_PREFIX}/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I${BREW_PREFIX}/include" >> $GITHUB_ENV
         # elif [ "$RUNNER_OS" == "Windows" ]; then
         #   choco install cmake
         #   # Note: Windows build requires vcpkg or manual dependency setup
@@ -70,11 +69,16 @@ jobs:
         mkdir build
         cd build
         if [ "${{ matrix.target }}" == "macos-arm64" ]; then
-          export PKG_CONFIG_PATH="/usr/local/lib:/opt/homebrew/lib:$PKG_CONFIG_PATH"
-          cmake .. -DWITH_MPRIS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=Release
+          cmake .. \
+            -DWITH_MPRIS=OFF \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${HOMEBREW_PREFIX}"
         elif [ "${{ matrix.target }}" == "macos-x64" ]; then
-          export PKG_CONFIG_PATH="/usr/local/lib:/opt/homebrew/lib:$PKG_CONFIG_PATH"
-          cmake .. -DWITH_MPRIS=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake .. \
+            -DWITH_MPRIS=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${HOMEBREW_PREFIX}"
         else
           cmake .. -DCMAKE_BUILD_TYPE=Release
         fi
@@ -136,7 +140,6 @@ jobs:
           ## Downloads
           Download the appropriate binary for your platform:
           - **Linux (x64)**: tuisic-linux-x64
-          # - **Windows (x64)**: tuisic-windows-x64.exe  
           - **macOS (Intel)**: tuisic-macos-x64
           - **macOS (Apple Silicon)**: tuisic-macos-arm64
         files: |

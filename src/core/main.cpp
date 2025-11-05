@@ -648,7 +648,7 @@ int main(int argc, char *argv[]) {
 
                 }
                 // else if(track_data[selected].source=="lastfm"){
-                    
+
                 // }
 
                   // next_tracks =
@@ -673,7 +673,7 @@ int main(int argc, char *argv[]) {
                   current_track_index = 0;
                   player->play(next_tracks[0].url);
 
-                  
+
                 #ifdef WITH_MPRIS
                   if(!is_mpris_active){
                       tui_mpris->setup(player);
@@ -688,6 +688,9 @@ int main(int argc, char *argv[]) {
                 }
               });
               next_tracks_thread.detach();
+            } else {
+              // Track has no ID - play directly without fetching next tracks
+              player->play(track_data[selected].url);
             }
 
             /* player->create_playlist(next_tracks_strings); */

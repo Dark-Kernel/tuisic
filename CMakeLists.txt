@@ -77,6 +77,7 @@ find_package(CURL REQUIRED)
 find_package(fmt REQUIRED)
 
 target_include_directories(tuisic PRIVATE ${MPV_INCLUDE_DIRS})
+target_link_directories(tuisic PRIVATE ${MPV_LIBRARY_DIRS})
 target_link_libraries(tuisic
   PRIVATE ${MPV_LIBRARIES}
   PRIVATE fmt::fmt
