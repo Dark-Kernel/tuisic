@@ -202,25 +202,67 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
   screen.PostEvent(ftxui::Event::Custom);
 }
 
-//// Visualizer
-// ftxui::Component create_visualizer() {
-//   return ftxui::Renderer([&] {
-//     std::vector<ftxui::Element> bars;
+#ifdef WITH_CAVA
+// Visualizer data storage
+std::vector<double> visualizer_bars;
+std::mutex visualizer_mutex;
 
-//     // Get latest visualization data
-//     auto viz_data = player->get_visualization_data();
+// Visualizer component creator
+ftxui::Element create_visualizer_bars() {
+  using namespace ftxui;
 
-//     // Create bars for visualization
-//     for (size_t i = 0; i < viz_data.size(); i++) {
-//       int height =
-//           static_cast<int>(viz_data[i] * 8); // Scale to reasonable height
-//       bars.push_back(ftxui::vbox({ftxui::text(std::string(height, '|')) |
-//                                   color(ftxui::Color::Green)}));
-//     }
+  std::lock_guard<std::mutex> lock(visualizer_mutex);
 
-//     return hbox(std::move(bars));
-//   });
-// }
+  if (visualizer_bars.empty()) {
+    return text("No audio data") | dim | center;
+  }
+
+  // Create visualization bars
+  std::vector<Element> bars;
+  const int MAX_HEIGHT = 10;
+
+  // Process bars in pairs (stereo)
+  for (size_t i = 0; i < visualizer_bars.size() && i < 32; i += 2) {
+    // Average stereo channels if available
+    double value = (i + 1 < visualizer_bars.size())
+                    ? (visualizer_bars[i] + visualizer_bars[i + 1]) / 2.0
+                    : visualizer_bars[i];
+
+    // Scale and clamp the value
+    int height = std::clamp(static_cast<int>(value * MAX_HEIGHT), 0, MAX_HEIGHT);
+
+    // Create colored bar based on height
+    Color bar_color;
+    if (height <= 3) {
+      bar_color = Color::Green;
+    } else if (height <= 6) {
+      bar_color = Color::Yellow;
+    } else {
+      bar_color = Color::Red;
+    }
+
+    // Build vertical bar
+    std::vector<Element> bar_segments;
+    for (int h = 0; h < MAX_HEIGHT; h++) {
+      if (h < height) {
+        bar_segments.push_back(text(" █") | color(bar_color));
+      } else {
+        bar_segments.push_back(text(" "));
+      }
+    }
+
+    // Reverse so bars grow upward
+    std::reverse(bar_segments.begin(), bar_segments.end());
+    bars.push_back(vbox(std::move(bar_segments)));
+  }
+
+  if (bars.empty()) {
+    return text("Waiting for audio...") | dim | center;
+  }
+
+  return hbox(std::move(bars)) | center | flex;
+}
+#endif
 
 #ifdef WITH_MPRIS
 #include "../audio/mpris_handler.cpp"
@@ -532,6 +574,29 @@ int main(int argc, char *argv[]) {
 
   // Initialize notification system with config
   notifications::init(config.get());
+
+#ifdef WITH_CAVA
+  // Set up audio callback for visualizer
+  player->set_audio_callback([&](const std::vector<double>& audio_data) {
+    static int ui_callback_count = 0;
+    ui_callback_count++;
+
+    if (ui_callback_count == 1) {
+      std::cout << "[Main] UI callback working! Received " << audio_data.size() << " bars" << std::endl;
+    }
+
+    std::lock_guard<std::mutex> lock(visualizer_mutex);
+    visualizer_bars = audio_data;
+
+    if (ui_callback_count % 100 == 0) {
+      std::cout << "[Main] UI updated " << ui_callback_count << " times, bars: " << visualizer_bars.size() << std::endl;
+    }
+
+    screen.PostEvent(ftxui::Event::Custom);
+  });
+
+  std::cout << "[Main] Audio callback set up successfully" << std::endl;
+#endif
 
   using namespace ftxui;
 
@@ -1369,31 +1434,20 @@ int main(int argc, char *argv[]) {
                 }) | center,
                 separator(),
                 hbox({
-                    [&]() -> Element {
-                      // Fetch the ASCII art for testing
-                      auto art = get_track_ascii_art({});
-                      // Convert each line into an FTXUI Element
-                      std::vector<Element> art_elements;
-                      for (const auto &line : art) {
-                        art_elements.push_back(text(line) | color(Color::Blue));
-                      }
-                      return vbox(std::move(art_elements)) | center;
-                    }(),
-                    // create_visualizer()->Render(),
                     // [&]() -> Element {
-                    //   auto viz_data = player->get_visualization_data();
-                    //   std::vector<Element> bars;
-
-                    //   // Create bars for visualization
-                    //   for (size_t i = 0; i < viz_data.size(); i++) {
-                    //     int height = static_cast<int>(
-                    //         viz_data[i] * 8); // Scale to reasonable height
-                    //     bars.push_back(vbox({text(std::string(height, '|')) |
-                    //                          color(ftxui::Color::Green)}));
+                    //   // Fetch the ASCII art for testing
+                    //   auto art = get_track_ascii_art({});
+                    //   // Convert each line into an FTXUI Element
+                    //   std::vector<Element> art_elements;
+                    //   for (const auto &line : art) {
+                    //     art_elements.push_back(text(line) | color(Color::Blue));
                     //   }
-
-                    //   return hbox(std::move(bars)) | center;
+                    //   return vbox(std::move(art_elements)) | center;
                     // }(),
+#ifdef WITH_CAVA
+                   // separator(),
+                    create_visualizer_bars() | flex,
+#endif
                 }) | center,
                 separator(),
                 hbox({

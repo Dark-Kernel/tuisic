@@ -3,9 +3,13 @@
 #include "../common/Track.h"
 #include "../core/config/config.hpp"
 #include "../common/notification.hpp"
-// #include "visualizer.hpp"
+#ifdef WITH_CAVA
+#include "visualizer.hpp"
+#include "audio_capture.hpp"
+#endif
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <curl/curl.h>
@@ -18,12 +22,19 @@
 #include <random>
 #include <thread>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 class MusicPlayer {
 private:
-  // std::shared_ptr<AudioVisualizer> visualizer;
+#ifdef WITH_CAVA
+  std::shared_ptr<AudioVisualizer> visualizer;
+  std::shared_ptr<AudioCapture> audio_capture;
+#endif
   std::vector<double> audio_buffer;
   std::function<void(const std::vector<double> &)> on_audio_data;
-    // std::vector<double> visualization_data;  // Store processed visualization data
+  std::vector<double> visualization_data;  // Store processed visualization data
 
 
   // Smart pointer with custom deleter for mpv handle
@@ -111,13 +122,55 @@ public:
       }
     }
 
-    // visualizer = std::make_shared<AudioVisualizer>();
+#ifdef WITH_CAVA
+    try {
+      visualizer = std::make_shared<AudioVisualizer>();
+      audio_capture = std::make_shared<AudioCapture>();
+
+      // Set up audio capture callback
+      audio_capture->set_callback([this](const std::vector<double>& audio_data) {
+        static int callback_count = 0;
+        callback_count++;
+
+        if (callback_count == 1) {
+          std::cout << "[Player] Audio capture callback working! Received "
+                    << audio_data.size() << " samples" << std::endl;
+        }
+
+        if (visualizer && on_audio_data) {
+          // Process through visualizer
+          std::vector<double> viz_data;
+          {
+            std::lock_guard<std::mutex> lock(player_mutex);
+            viz_data = visualizer->process(audio_data);
+            visualization_data = viz_data;
+          }
+
+          if (callback_count % 100 == 0) {
+            std::cout << "[Player] Processed " << callback_count
+                      << " buffers, viz_data size: " << viz_data.size() << std::endl;
+          }
+
+          // Send to UI callback
+          if (!viz_data.empty()) {
+            on_audio_data(viz_data);
+          }
+        } else {
+          if (callback_count == 1) {
+            std::cerr << "[Player] Visualizer or on_audio_data callback missing!" << std::endl;
+          }
+        }
+      });
+
+    } catch (const std::exception& e) {
+      log_error(std::string("Failed to initialize visualizer: ") + e.what());
+    }
+#endif
 
     // Property observation
     mpv_observe_property(mpv.get(), 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv.get(), 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv.get(), 0, "sub-text", MPV_FORMAT_STRING);
-    mpv_observe_property(mpv.get(), 0, "audio-data", MPV_FORMAT_NODE);
     // Set audio output based on platform
 #ifdef _WIN32
     mpv_set_option_string(mpv.get(), "ao", "wasapi");
@@ -272,6 +325,13 @@ public:
       current_url = url;
       is_loaded = true;
       is_playing = true;
+
+#ifdef WITH_CAVA
+      // Start audio capture when playback begins
+      if (audio_capture) {
+        audio_capture->start();
+      }
+#endif
     }
 
     // If paused, unpause
@@ -279,6 +339,13 @@ public:
       const char *cmd[] = {"cycle", "pause", NULL};
       mpv_command_async(mpv.get(), 0, cmd);
       is_paused = false;
+
+#ifdef WITH_CAVA
+      // Resume audio capture
+      if (audio_capture) {
+        audio_capture->start();
+      }
+#endif
     }
   }
 
@@ -447,10 +514,10 @@ public:
     return static_cast<int>(volume);
   }
 
-  // std::vector<double> get_visualization_data() const {
-  //   std::lock_guard<std::mutex> lock(player_mutex);
-  //   return visualization_data;
-// }
+  std::vector<double> get_visualization_data() const {
+    std::lock_guard<std::mutex> lock(player_mutex);
+    return visualization_data;
+  }
 
   // Callback setters
 
@@ -515,39 +582,10 @@ private:
   }
 
   void handle_property_change(mpv_event_property *prop) {
-    if (strcmp(prop->name, "audio-data") == 0 &&
-        prop->format == MPV_FORMAT_NODE) {
-      auto *node = static_cast<mpv_node *>(prop->data);
-      if (node->format == MPV_FORMAT_BYTE_ARRAY) {
-        // Convert audio data to doubles
-        auto *bytes = node->u.ba->data;
-        size_t num_samples = node->u.ba->size / sizeof(float);
-        audio_buffer.resize(num_samples);
-
-        for (size_t i = 0; i < num_samples; i++) {
-          audio_buffer[i] =
-              static_cast<double>(reinterpret_cast<float *>(bytes)[i]);
-        }
-
-        // Process through visualizer
-        // auto viz_data = visualizer->process(audio_buffer);
-         {
-            std::lock_guard<std::mutex> lock(player_mutex);
-            // visualization_data = visualizer->process(audio_buffer);
-        }
-         // In the audio data handling section:
-// std::cerr << "Audio data received: " << num_samples << " samples" << std::endl;
-// std::cerr << "Visualization data size: " << visualization_data.size() << std::endl;
-
-
-        // Send to callback
-        if (on_audio_data) {
-          // on_audio_data(visualization_data);
-        }
-      }
-    } else if (strcmp(prop->name, "time-pos") == 0 &&
+    if (strcmp(prop->name, "time-pos") == 0 &&
                prop->format == MPV_FORMAT_DOUBLE) {
       current_position = *static_cast<double *>(prop->data);
+
       if (on_time_update) {
         on_time_update(current_position, duration);
       }

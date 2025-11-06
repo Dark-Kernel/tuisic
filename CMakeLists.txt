@@ -61,7 +61,7 @@ if (WITH_CAVA)
   add_dependencies(cavacore cava_external)
   set_target_properties(cavacore PROPERTIES
     IMPORTED_LOCATION
-      ${CMAKE_CURRENT_BINARY_DIR}/cava-prefix/src/cava-build/libcavacore.a)
+      ${CMAKE_CURRENT_BINARY_DIR}/cava_external-prefix/src/cava_external-build/libcavacore.a)
 
   find_package(FFTW3 REQUIRED)
   target_include_directories(cavacore INTERFACE
@@ -87,6 +87,12 @@ target_link_libraries(tuisic
 
 if (WITH_CAVA)
   target_link_libraries(tuisic PRIVATE cavacore)
+  target_compile_definitions(tuisic PRIVATE WITH_CAVA)
+
+  # Add PulseAudio for audio capture
+  pkg_check_modules(PULSEAUDIO REQUIRED libpulse libpulse-simple)
+  target_include_directories(tuisic PRIVATE ${PULSEAUDIO_INCLUDE_DIRS})
+  target_link_libraries(tuisic PRIVATE ${PULSEAUDIO_LIBRARIES})
 endif()
 
 # ─── Install ───────────────────────────────────────────────────────────────────
