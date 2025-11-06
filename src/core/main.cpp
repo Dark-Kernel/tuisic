@@ -678,6 +678,9 @@ int main(int argc, char *argv[]) {
                   if(!is_mpris_active){
                       tui_mpris->setup(player);
                       is_mpris_active = true;
+                  } else {
+                      tui_mpris->notifyTrackChange();
+                      tui_mpris->notifyPlaybackChange();
                   }
                 #endif
 
@@ -691,6 +694,15 @@ int main(int argc, char *argv[]) {
             } else {
               // Track has no ID - play directly without fetching next tracks
               player->play(track_data[selected].url);
+#ifdef WITH_MPRIS
+              if(!is_mpris_active){
+                  tui_mpris->setup(player);
+                  is_mpris_active = true;
+              } else {
+                  tui_mpris->notifyTrackChange();
+                  tui_mpris->notifyPlaybackChange();
+              }
+#endif
             }
 
             /* player->create_playlist(next_tracks_strings); */
@@ -812,6 +824,15 @@ int main(int argc, char *argv[]) {
             current_artist = trending_tracks[selected_trending].artist;
             button_text = "Pause";
             recently_played.push_back(trending_tracks[selected_trending]);
+#ifdef WITH_MPRIS
+            if(!is_mpris_active){
+                tui_mpris->setup(player);
+                is_mpris_active = true;
+            } else {
+                tui_mpris->notifyTrackChange();
+                tui_mpris->notifyPlaybackChange();
+            }
+#endif
             screen.PostEvent(Event::Custom);
           }
           return true;
@@ -986,6 +1007,11 @@ int main(int argc, char *argv[]) {
   // player callbacks
   player->set_state_callback([&] {
     button_text = player->is_playing_state() ? "Pause" : "Play";
+#ifdef WITH_MPRIS
+    if (is_mpris_active && tui_mpris) {
+      tui_mpris->notifyPlaybackChange();
+    }
+#endif
     screen.PostEvent(Event::Custom);
   });
   double current_position = 0.0;
@@ -1044,6 +1070,13 @@ int main(int argc, char *argv[]) {
       button_text = "Pause";
     }
 
+#ifdef WITH_MPRIS
+    if (is_mpris_active && tui_mpris) {
+      tui_mpris->notifyTrackChange();
+      tui_mpris->notifyPlaybackChange();
+    }
+#endif
+
     screen.PostEvent(Event::Custom);
   });
 
@@ -1065,6 +1098,13 @@ int main(int argc, char *argv[]) {
       current_artist = track_data[selected].artist;
       button_text = "Pause";
     }
+
+#ifdef WITH_MPRIS
+    if (is_mpris_active && tui_mpris) {
+      tui_mpris->notifyTrackChange();
+      tui_mpris->notifyPlaybackChange();
+    }
+#endif
 
     screen.PostEvent(Event::Custom);
   });
@@ -1088,6 +1128,13 @@ int main(int argc, char *argv[]) {
       current_track = track_data[selected].name;
       current_artist = track_data[selected].artist;
     }
+
+#ifdef WITH_MPRIS
+    if (is_mpris_active && tui_mpris) {
+      tui_mpris->notifyTrackChange();
+      tui_mpris->notifyPlaybackChange();
+    }
+#endif
 
     // Ensure UI updates
     screen.PostEvent(Event::Custom);
