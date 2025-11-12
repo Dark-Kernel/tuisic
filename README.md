@@ -7,7 +7,7 @@ https://github.com/user-attachments/assets/ef349a06-0d7e-488b-aa3d-de928d9b0eef
 
 
 
-First app of its kind, It let's you search and play online songs from cli hassle free. Now it supports AI integration through [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA).
+First app of its kind, It let's you search and play online songs from cli hassle free. Now it supports AI integration through [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA). Checkout Demo's [below](#demos)
 
 ## Features
 - Vim motions
@@ -162,10 +162,20 @@ sudo make install
 
 1. Screenshots: [here](https://blogs.sumit.engineer/showcase/) scroll way down.
 
+<img width="1366" height="768" alt="1762971302" src="https://github.com/user-attachments/assets/afd5e0ca-9600-4075-97d2-9a15713a17f6" />
+<img width="1366" height="768" alt="2025-09-17_21-34-11" src="https://github.com/user-attachments/assets/61123987-ea48-4d75-9954-fec9e52f7714" />
+<hr>
+
 2. Visualizer:
+
+https://github.com/user-attachments/assets/1f512307-7c70-466d-9cd0-529e195871d0
 
 
 3. MCP Server:
+
+
+https://github.com/user-attachments/assets/7601312a-9bca-4970-90a3-4a917fbe2fda
+
 
 
 
