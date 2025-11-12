@@ -36,6 +36,9 @@
 #include <vector>
 
 #include "../common/notification.hpp"
+#include "../ai/json_output.hpp"
+#include "../ai/command_handler.hpp"
+#include "../ai/mcp_server.hpp"
 
 // Data in string to render in UI
 std::vector<std::string> track_strings;
@@ -205,7 +208,11 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 #ifdef WITH_CAVA
 // Visualizer data storage
 std::vector<double> visualizer_bars;
+std::vector<double> smoothed_bars(16, 0.0);  // For smooth animations
 std::mutex visualizer_mutex;
+
+// Fixed number of bars like CAVA
+static constexpr int NUM_BARS = 16;
 
 // Visualizer component creator
 ftxui::Element create_visualizer_bars() {
@@ -213,41 +220,63 @@ ftxui::Element create_visualizer_bars() {
 
   std::lock_guard<std::mutex> lock(visualizer_mutex);
 
-  if (visualizer_bars.empty()) {
-    return text("No audio data") | dim | center;
-  }
-
-  // Create visualization bars
+  // Create fixed number of bars
   std::vector<Element> bars;
-  const int MAX_HEIGHT = 10;
+  const int MAX_HEIGHT = 8;  // Reduced height for better UI layout
+  const int BASE_HEIGHT = 1;  // Minimum bar height (base indicator)
 
-  // Process bars in pairs (stereo)
-  for (size_t i = 0; i < visualizer_bars.size() && i < 32; i += 2) {
-    // Average stereo channels if available
-    double value = (i + 1 < visualizer_bars.size())
-                    ? (visualizer_bars[i] + visualizer_bars[i + 1]) / 2.0
-                    : visualizer_bars[i];
+  // Always create exactly NUM_BARS bars
+  for (int bar_index = 0; bar_index < NUM_BARS; bar_index++) {
+    double target_height = BASE_HEIGHT;
 
-    // Scale and clamp the value
-    int height = std::clamp(static_cast<int>(value * MAX_HEIGHT), 0, MAX_HEIGHT);
+    // Get height from visualizer data if available
+    if (!visualizer_bars.empty() && bar_index * 2 < visualizer_bars.size()) {
+      // Average stereo channels
+      double value = (bar_index * 2 + 1 < visualizer_bars.size())
+                      ? (visualizer_bars[bar_index * 2] + visualizer_bars[bar_index * 2 + 1]) / 2.0
+                      : visualizer_bars[bar_index * 2];
+
+      // Reduced sensitivity like CAVA's down arrow (lower multiplier)
+      target_height = std::clamp(value * MAX_HEIGHT * 1.2, static_cast<double>(BASE_HEIGHT), static_cast<double>(MAX_HEIGHT));
+    }
+
+    // CAVA-style smoothing with gravity effect
+    // Fast rise, slow fall (like gravity)
+    if (target_height > smoothed_bars[bar_index]) {
+      // Rising: respond quickly (30% of the way)
+      smoothed_bars[bar_index] = smoothed_bars[bar_index] * 0.7 + target_height * 0.3;
+    } else {
+      // Falling: respond slowly (10% of the way) - gravity effect
+      smoothed_bars[bar_index] = smoothed_bars[bar_index] * 0.9 + target_height * 0.1;
+    }
+
+    int height = std::clamp(static_cast<int>(smoothed_bars[bar_index]), BASE_HEIGHT, MAX_HEIGHT);
 
     // Create colored bar based on height
     Color bar_color;
-    if (height <= 3) {
+    Color base_color = Color::GrayDark;  // Dim base color
+
+    if (height <= MAX_HEIGHT / 3) {
       bar_color = Color::Green;
-    } else if (height <= 6) {
+    } else if (height <= (MAX_HEIGHT * 2) / 3) {
       bar_color = Color::Yellow;
     } else {
       bar_color = Color::Red;
     }
 
-    // Build vertical bar
+    // Build vertical bar - always same structure, only height changes
+    // Use actual character width instead of size() modifier
     std::vector<Element> bar_segments;
     for (int h = 0; h < MAX_HEIGHT; h++) {
-      if (h < height) {
+      if (h < BASE_HEIGHT) {
+        // Base indicator (always visible) - wider with actual characters
+        bar_segments.push_back(text(" ▁▁") | color(base_color));
+      } else if (h < height) {
+        // Active part of the bar - wider with actual characters
         bar_segments.push_back(text(" █") | color(bar_color));
       } else {
-        bar_segments.push_back(text(" "));
+        // Empty space - same width
+        bar_segments.push_back(text("  "));
       }
     }
 
@@ -256,11 +285,7 @@ ftxui::Element create_visualizer_bars() {
     bars.push_back(vbox(std::move(bar_segments)));
   }
 
-  if (bars.empty()) {
-    return text("Waiting for audio...") | dim | center;
-  }
-
-  return hbox(std::move(bars)) | center | flex;
+  return hbox(std::move(bars)) | center;
 }
 #endif
 
@@ -341,6 +366,23 @@ sdbus::IObject *g_concatenator{};
 #endif
 
 int main(int argc, char *argv[]) {
+
+  // AI/CLI Command Mode: tuisic --cmd "play jazz"
+  if (argc >= 3 && std::string(argv[1]) == "--cmd") {
+    auto cmd_handler = std::make_shared<ai::CommandHandler>(player, soundcloud, saavn);
+    std::string command = argv[2];
+    std::string result = cmd_handler->execute(command);
+    std::cout << result << std::endl;
+    return 0;
+  }
+
+  // MCP Server Mode: tuisic --mcp-server
+  if (argc >= 2 && std::string(argv[1]) == "--mcp-server") {
+    auto cmd_handler = std::make_shared<ai::CommandHandler>(player, soundcloud, saavn);
+    ai::MCPServer mcp_server(cmd_handler);
+    mcp_server.run();
+    return 0;
+  }
 
 #ifdef WITH_MPRIS
       tui_mpris = std::make_unique<TUIMPRISIntegration>(track_data, current_track_index);
@@ -1434,20 +1476,21 @@ int main(int argc, char *argv[]) {
                 }) | center,
                 separator(),
                 hbox({
-                    // [&]() -> Element {
-                    //   // Fetch the ASCII art for testing
-                    //   auto art = get_track_ascii_art({});
-                    //   // Convert each line into an FTXUI Element
-                    //   std::vector<Element> art_elements;
-                    //   for (const auto &line : art) {
-                    //     art_elements.push_back(text(line) | color(Color::Blue));
-                    //   }
-                    //   return vbox(std::move(art_elements)) | center;
-                    // }(),
-#ifdef WITH_CAVA
-                   // separator(),
+                #ifdef WITH_CAVA
+                    // separator(),
                     create_visualizer_bars() | flex,
-#endif
+                #else
+                    [&]() -> Element {
+                      // Fetch the ASCII art for testing
+                      auto art = get_track_ascii_art({});
+                      // Convert each line into an FTXUI Element
+                      std::vector<Element> art_elements;
+                      for (const auto &line : art) {
+                        art_elements.push_back(text(line) | color(Color::Blue));
+                      }
+                      return vbox(std::move(art_elements)) | center;
+                    }(),
+                #endif
                 }) | center,
                 separator(),
                 hbox({

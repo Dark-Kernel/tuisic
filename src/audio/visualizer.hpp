@@ -10,7 +10,7 @@ private:
     struct cava_plan* plan;
     std::vector<double> input_buffer;
     std::vector<double> output_buffer;
-    static constexpr int BARS = 16;  // Number of visualization bars
+    static constexpr int BARS = 16;  // Number of frequency bands (matches NUM_BARS in main)
     static constexpr int SAMPLE_RATE = 44100;
     static constexpr int CHANNELS = 2;
     static constexpr double NOISE_REDUCTION = 0.77;

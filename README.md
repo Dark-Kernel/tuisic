@@ -1,13 +1,13 @@
 # TUISIC
 
-TUI Online Music Streaming application.
+TUI Online Music Streaming application with MCP support
 
 
 https://github.com/user-attachments/assets/ef349a06-0d7e-488b-aa3d-de928d9b0eef
 
 
 
-First app of its kind, It let's you search and play online songs from cli hassle free.
+First app of its kind, It let's you search and play online songs from cli hassle free. Now it supports AI integration through [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA).
 
 ## Features
 - Vim motions
@@ -20,6 +20,8 @@ First app of its kind, It let's you search and play online songs from cli hassle
 - Configuration file
 - Daemon mode (BETA, press 'w' to toggle) 
 - [MPRIS DBUS](https://wiki.archlinux.org/title/MPRIS) support ( via `playerctl` )
+- Cava Visualizer (BETA)
+- Support for AI Integration via [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA)
 
 ## Shortcuts
 
@@ -49,24 +51,22 @@ It fetches songs from some platforms:
 - YouTube Music (on the way)
 
 ## Installation: 
-1. Using [AUR](https://aur.archlinux.org/packages/tuisic-git) package
+
+1. Check [releases](https://github.com/Dark-Kernel/tuisic/releases)
+
+2. Using [AUR](https://aur.archlinux.org/packages/tuisic-git) package
 
 ```sh
 yay -S tuisic-git
 ```
 
-2. Building from source (All platforms)
+### Building from source
 
-### Dependencies (Linux/MacOS)
-```sh
-sudo pacman -S curl mpv fmt yt-dlp fftw sdbus-cpp
-```
-
-### Build Options
+#### Build Options
 | CMake Flag       | Description                       | Default |
 | ---------------- | --------------------------------- | ------- |
 | `-DWITH_MPRIS`   | Enable MPRIS (sdbus-c++) support  | ON      |
-| `-DWITH_CAVA`    | Enable Cava visualizer(NOT READY) | OFF     |
+| `-DWITH_CAVA`    | Enable Cavacore-based visualizer  | OFF     |
 
 
 #### Before Installation
@@ -76,14 +76,98 @@ Update the [desktop/tuisic.desktop](./desktop/tuisic.desktop) file.
 Exec=alacritty -e tuisic # Change terminal accordingly
 ```
 
-### Build, Compile & Install
+#### Debian
+
+1. Install dependencies
+
+```
+sudo apt-get update
+sudo apt-get install -y build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev rapidjson-dev libpulse-dev
+```
+
+2. If you want to use [MPRIS](https://wiki.archlinux.org/title/MPRIS) then install [sdbus-cpp](https://github.com/Kistler-Group/sdbus-cpp)
+
+```
+git clone --depth 1 https://github.com/Kistler-Group/sdbus-cpp.git
+cd sdbus-cpp
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
+sudo cmake --build . --target install
+```
+
+3. Build
+
+```
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+```
+
+#### Arch Linux
+
+1. Install dependencies
+
+```sh
+sudo pacman -S curl mpv fmt yt-dlp fftw sdbus-cpp rapidjson
+```
+
+2. Build
+
+```
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+```
+
+#### MacOS
+
+1. Install dependencies
+
+```
+brew install cmake pkg-config fftw mpv curl fmt rapidjson
+```
+
+2. Set environment variables for Homebrew paths
+
+```
+# Detect Homebrew prefix (Apple Silicon uses /opt/homebrew, Intel uses /usr/local)
+BREW_PREFIX=$(brew --prefix)
+export HOMEBREW_PREFIX=${BREW_PREFIX}
+export PKG_CONFIG_PATH=${BREW_PREFIX}/lib/pkgconfig:${BREW_PREFIX}/opt/curl/lib/pkgconfig:${BREW_PREFIX}/opt/fmt/lib/pkgconfig
+export CMAKE_PREFIX_PATH=${BREW_PREFIX}
+export LDFLAGS=-L${BREW_PREFIX}/lib
+export CPPFLAGS=-I${BREW_PREFIX}/include
+```
+
+3. Build
+
+```
+cmake .. \
+  -DWITH_MPRIS=OFF \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="${HOMEBREW_PREFIX}"
+
+cmake --build . --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+```
+
+### MISC Build, Compile & Install
 
 ```sh
 mkdir build && cd build
-cmake .. # -DWITH_MPRIS=OFF
+cmake .. # -DWITH_MPRIS=OFF -DWITH_CAVA=ON
 make
 sudo make install
 ```
+
+### DEMOS
+
+1. Screenshots: [here](https://blogs.sumit.engineer/showcase/) scroll way down.
+
+2. Visualizer:
+
+
+3. MCP Server:
+
+
 
 ## Thanks to all.
 
