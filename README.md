@@ -158,6 +158,20 @@ make
 sudo make install
 ```
 
+
+### Configure MCP
+
+Use `tuisic --mcp-server` command in your ai client config.
+
+Example in `.config/opencode/opencode.json`:
+```json
+"tuisic":{
+    "type": "local",
+    "command": ["/path/to/tuisic/build/tuisic", "--mcp-server"],
+    "enabled": true
+  }
+```
+
 ### DEMOS
 
 1. Screenshots: [here](https://blogs.sumit.engineer/showcase/) scroll way down.
