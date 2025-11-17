@@ -308,11 +308,12 @@ class TUIMPRISIntegration {
 private:
   std::unique_ptr<MPRISHandler> mpris_handler;
   std::vector<Track> &track_data; // Your TUI track data
+  std::vector<Track> &next_tracks; // The actual playing playlist
   int &current_track_index;
 
 public:
-  TUIMPRISIntegration(std::vector<Track> &tracks, int &track_index)
-      : track_data(tracks), current_track_index(track_index) {}
+  TUIMPRISIntegration(std::vector<Track> &tracks, std::vector<Track> &next_track_list, int &track_index)
+      : track_data(tracks), next_tracks(next_track_list), current_track_index(track_index) {}
 
   void setup(std::shared_ptr<MusicPlayer> player) {
     mpris_handler = std::make_unique<MPRISHandler>(player);
@@ -320,26 +321,30 @@ public:
 
     mpris_handler->setTrackCallbacks(
         [this]() -> std::string {
-          return (track_data.empty() ||
-                  current_track_index >= track_data.size())
+          // Use next_tracks if available, otherwise fall back to track_data
+          auto &source = !next_tracks.empty() ? next_tracks : track_data;
+          return (source.empty() || current_track_index >= source.size())
                      ? ""
-                     : track_data[current_track_index].id;
+                     : source[current_track_index].id;
         },
         [this]() -> std::string {
-          return (track_data.empty() ||
-                  current_track_index >= track_data.size())
+          // Use next_tracks if available, otherwise fall back to track_data
+          auto &source = !next_tracks.empty() ? next_tracks : track_data;
+          return (source.empty() || current_track_index >= source.size())
                      ? ""
-                     : track_data[current_track_index].name;
+                     : source[current_track_index].name;
         },
         [this]() -> std::string {
-          return (track_data.empty() ||
-                  current_track_index >= track_data.size())
+          // Use next_tracks if available, otherwise fall back to track_data
+          auto &source = !next_tracks.empty() ? next_tracks : track_data;
+          return (source.empty() || current_track_index >= source.size())
                      ? ""
-                     : track_data[current_track_index].artist;
+                     : source[current_track_index].artist;
         },
         [this]() {
           // Next track via MPRIS
-          if (current_track_index < track_data.size() - 1) {
+          auto &source = !next_tracks.empty() ? next_tracks : track_data;
+          if (current_track_index < source.size() - 1) {
             current_track_index++;
           }
         },

@@ -385,7 +385,7 @@ int main(int argc, char *argv[]) {
   }
 
 #ifdef WITH_MPRIS
-      tui_mpris = std::make_unique<TUIMPRISIntegration>(track_data, current_track_index);
+      tui_mpris = std::make_unique<TUIMPRISIntegration>(track_data, next_tracks, current_track_index);
       // tui_mpris->setup(player);
 #endif
 
