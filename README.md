@@ -195,6 +195,8 @@ https://github.com/user-attachments/assets/7601312a-9bca-4970-90a3-4a917fbe2fda
 
 4. Discord Rich Presence:
 
+<img width="887" height="378" alt="1763375799" src="https://github.com/user-attachments/assets/8bc587c3-66b5-45ef-8a8a-ee8dd0ffe3ef" />
+
 
 ## Thanks to all.
 
