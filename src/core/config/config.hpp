@@ -79,6 +79,12 @@ private:
     cache.AddMember("path", rapidjson::Value(cache_path.c_str(), allocator), allocator);
     config.AddMember("cache", cache, allocator);
 
+    // Discord RPC section
+    rapidjson::Value discord(rapidjson::kObjectType);
+    discord.AddMember("enabled", true, allocator);
+    discord.AddMember("client_id", "1439898170594299914", allocator);
+    config.AddMember("discord_rpc", discord, allocator);
+
     // Create directories if they don't exist
     /* std::filesystem::create_directories( */
     /*     std::filesystem::path(get_download_path()).parent_path() */
@@ -222,6 +228,15 @@ public:
 
   std::string get_data_dir() const {
     return paths::get_data_dir();
+  }
+
+  // Discord RPC settings getters
+  bool get_discord_enabled() const {
+    return get_bool_value("discord_rpc", "enabled", true);
+  }
+
+  std::string get_discord_client_id() const {
+    return get_string_value("discord_rpc", "client_id", "1439898170594299914");
   }
 
   void set_download_path(const std::string &path) {

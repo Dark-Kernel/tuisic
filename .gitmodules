@@ -1,3 +1,6 @@
 [submodule "cava"]
 	path = cava
 	url = https://github.com/karlstav/cava.git
+[submodule "discord-rpc"]
+	path = discord-rpc
+	url = https://github.com/discord/discord-rpc.git

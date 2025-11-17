@@ -22,6 +22,7 @@ First app of its kind, It let's you search and play online songs from cli hassle
 - [MPRIS DBUS](https://wiki.archlinux.org/title/MPRIS) support ( via `playerctl` )
 - Cava Visualizer (BETA)
 - Support for AI Integration via [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA)
+- Support for [Discord Rich Presence](https://discord.com/developers/docs/topics/gateway#activity-object)
 
 ## Shortcuts
 
@@ -67,6 +68,7 @@ yay -S tuisic-git
 | ---------------- | --------------------------------- | ------- |
 | `-DWITH_MPRIS`   | Enable MPRIS (sdbus-c++) support  | ON      |
 | `-DWITH_CAVA`    | Enable Cavacore-based visualizer  | OFF     |
+| `-DWITH_DISCORD` | Enable Discord Rich Presence      | OFF     |
 
 
 #### Before Installation
@@ -191,6 +193,7 @@ https://github.com/user-attachments/assets/1f512307-7c70-466d-9cd0-529e195871d0
 https://github.com/user-attachments/assets/7601312a-9bca-4970-90a3-4a917fbe2fda
 
 
+4. Discord Rich Presence:
 
 
 ## Thanks to all.

@@ -294,6 +294,14 @@ ftxui::Element create_visualizer_bars() {
 std::unique_ptr<MPRISHandler> mpris_handler;
 bool is_mpris_active = false;
 
+std::unique_ptr<TUIMPRISIntegration> tui_mpris;
+#endif
+
+#ifdef WITH_DISCORD
+#include "../audio/discord_handler.cpp"
+std::unique_ptr<TUIDiscordIntegration> tui_discord;
+bool is_discord_active = false;
+
 // In TUI mode initialization:
 void setupMPRISForDaemon(std::shared_ptr<MusicPlayer> player,
                          std::vector<Track> next_tracks,
@@ -355,11 +363,7 @@ void setupMPRISForDaemon(std::shared_ptr<MusicPlayer> player,
 
   mpris_handler->startEventLoop();
 }
-
-std::unique_ptr<TUIMPRISIntegration> tui_mpris;
 #endif
-
-
 
 #ifdef WITH_MPRIS
 sdbus::IObject *g_concatenator{};
@@ -387,6 +391,11 @@ int main(int argc, char *argv[]) {
 #ifdef WITH_MPRIS
       tui_mpris = std::make_unique<TUIMPRISIntegration>(track_data, next_tracks, current_track_index);
       // tui_mpris->setup(player);
+#endif
+
+#ifdef WITH_DISCORD
+      tui_discord = std::make_unique<TUIDiscordIntegration>(track_data, next_tracks, current_track_index, player);
+      // Discord will be initialized when user starts playing
 #endif
 
   if (argc >= 3 && std::string(argv[1]) == "--daemon") {
@@ -791,6 +800,15 @@ int main(int argc, char *argv[]) {
                   }
                 #endif
 
+                #ifdef WITH_DISCORD
+                  if(!is_discord_active && config->get_discord_enabled()){
+                      tui_discord->setup(config->get_discord_client_id());
+                      is_discord_active = true;
+                  } else if(is_discord_active) {
+                      tui_discord->notifyTrackChange();
+                  }
+                #endif
+
                   screen.PostEvent(Event::Custom);
                 } catch (const std::exception &e) {
                   // std::cerr << e.what() << std::endl;
@@ -808,6 +826,15 @@ int main(int argc, char *argv[]) {
               } else {
                   tui_mpris->notifyTrackChange();
                   tui_mpris->notifyPlaybackChange();
+              }
+#endif
+
+#ifdef WITH_DISCORD
+              if(!is_discord_active && config->get_discord_enabled()){
+                  tui_discord->setup(config->get_discord_client_id());
+                  is_discord_active = true;
+              } else if(is_discord_active) {
+                  tui_discord->notifyTrackChange();
               }
 #endif
             }
@@ -938,6 +965,15 @@ int main(int argc, char *argv[]) {
             } else {
                 tui_mpris->notifyTrackChange();
                 tui_mpris->notifyPlaybackChange();
+            }
+#endif
+
+#ifdef WITH_DISCORD
+            if(!is_discord_active && config->get_discord_enabled()){
+                tui_discord->setup(config->get_discord_client_id());
+                is_discord_active = true;
+            } else if(is_discord_active) {
+                tui_discord->notifyTrackChange();
             }
 #endif
             screen.PostEvent(Event::Custom);
@@ -1119,6 +1155,12 @@ int main(int argc, char *argv[]) {
       tui_mpris->notifyPlaybackChange();
     }
 #endif
+
+#ifdef WITH_DISCORD
+    if (is_discord_active && tui_discord) {
+      tui_discord->notifyPlaybackChange();
+    }
+#endif
     screen.PostEvent(Event::Custom);
   });
   double current_position = 0.0;
@@ -1184,6 +1226,12 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+#ifdef WITH_DISCORD
+    if (is_discord_active && tui_discord) {
+      tui_discord->notifyTrackChange();
+    }
+#endif
+
     screen.PostEvent(Event::Custom);
   });
 
@@ -1210,6 +1258,12 @@ int main(int argc, char *argv[]) {
     if (is_mpris_active && tui_mpris) {
       tui_mpris->notifyTrackChange();
       tui_mpris->notifyPlaybackChange();
+    }
+#endif
+
+#ifdef WITH_DISCORD
+    if (is_discord_active && tui_discord) {
+      tui_discord->notifyTrackChange();
     }
 #endif
 
@@ -1240,6 +1294,12 @@ int main(int argc, char *argv[]) {
     if (is_mpris_active && tui_mpris) {
       tui_mpris->notifyTrackChange();
       tui_mpris->notifyPlaybackChange();
+    }
+#endif
+
+#ifdef WITH_DISCORD
+    if (is_discord_active && tui_discord) {
+      tui_discord->notifyTrackChange();
     }
 #endif
 

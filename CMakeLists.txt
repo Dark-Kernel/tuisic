@@ -4,6 +4,7 @@ project(tuisic LANGUAGES C CXX VERSION 1.0.0)
 
 option(WITH_MPRIS "Enable MPRIS support (via sdbus‑c++)" ON)
 option(WITH_CAVA  "Build CAVA visualiser"               OFF)
+option(WITH_DISCORD "Enable Discord Rich Presence"      OFF)
 
 add_executable(tuisic src/core/main.cpp)
 
@@ -34,6 +35,15 @@ if (WITH_MPRIS AND UNIX AND NOT APPLE AND NOT WIN32)
   find_package(sdbus-c++ REQUIRED)
   target_link_libraries(tuisic PRIVATE SDBusCpp::sdbus-c++)
   target_compile_definitions(tuisic PRIVATE -DWITH_MPRIS)
+endif()
+
+# ─── Discord RPC ────────────────────────────────────────────────────────────────
+if (WITH_DISCORD)
+  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  add_subdirectory(discord-rpc)
+  target_link_libraries(tuisic PRIVATE discord-rpc)
+  target_include_directories(tuisic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/discord-rpc/include)
+  target_compile_definitions(tuisic PRIVATE -DWITH_DISCORD)
 endif()
 
 # ─── FTXUI ─────────────────────────────────────────────────────────────────────
