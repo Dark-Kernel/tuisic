@@ -19,9 +19,11 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/screen_interactive.hpp> // for ScreenInteractive
 #include <ftxui/screen/color.hpp>
+#include <future>
 #include <iostream>
 #include <map>
 #include <sched.h>
+#include <unordered_set>
 
 #ifdef WITH_MPRIS
 #include <sdbus-c++/IConnection.h>
@@ -39,6 +41,11 @@
 #include "../ai/json_output.hpp"
 #include "../ai/command_handler.hpp"
 #include "../ai/mcp_server.hpp"
+
+// Performance tuning constants
+namespace {
+  constexpr size_t MAX_RECENT_TRACKS = 10;
+}
 
 // Data in string to render in UI
 std::vector<std::string> track_strings;
@@ -126,19 +133,41 @@ std::vector<std::string> get_track_ascii_art(const Track &track) {
 }
 
 auto searchQuery(const std::string &query) {
-  track_data_saavn = saavn.fetch_tracks(query);
+  // Launch all API calls in parallel for better performance
+  std::vector<std::future<std::vector<Track>>> futures;
+  futures.reserve(3);
+  
+  // Capture query by value to ensure thread safety
+  futures.push_back(std::async(std::launch::async, [query, &saavn]() { 
+    return saavn.fetch_tracks(query); 
+  }));
+  futures.push_back(std::async(std::launch::async, [query, &lastfm]() { 
+    return lastfm.fetch_tracks(query); 
+  }));
+  futures.push_back(std::async(std::launch::async, [query, &soundcloud]() { 
+    return soundcloud.fetch_tracks(query); 
+  }));
+  
+  // Collect results
+  track_data_saavn = futures[0].get();
   track_data = track_data_saavn;
-  track_data_lastfm = lastfm.fetch_tracks(query);
-  track_data_soundcloud = soundcloud.fetch_tracks(query);
-  for (const auto &track : track_data_soundcloud) {
-    track_data.push_back(track);
+  track_data_lastfm = futures[1].get();
+  track_data_soundcloud = futures[2].get();
+  
+  // Pre-allocate space to avoid multiple reallocations
+  track_data.reserve(track_data.size() + track_data_soundcloud.size() + track_data_lastfm.size());
+  
+  // Use move semantics for better performance
+  for (auto &track : track_data_soundcloud) {
+    track_data.push_back(std::move(track));
   }
-  for (const auto &track : track_data_lastfm) {
-    track_data.push_back(track);
+  for (auto &track : track_data_lastfm) {
+    track_data.push_back(std::move(track));
   }
 
   home_track_data = track_data;
   track_strings.clear();
+  track_strings.reserve(track_data.size()); // Pre-allocate
 
   // Convert tracks to display strings for menu UI
   for (const auto &track : track_data) {
@@ -153,29 +182,31 @@ auto fetch_recent() {
   recently_played_strings.clear();
   track_data.clear();
 
-  // Limit recently played to last 10 unique tracks
+  // Limit recently played to last MAX_RECENT_TRACKS unique tracks
+  // Use unordered_set for O(1) lookups instead of O(n) find_if
   std::vector<Track> unique_recently_played;
+  std::unordered_set<std::string> seen_tracks;
+  unique_recently_played.reserve(MAX_RECENT_TRACKS); // Pre-allocate
+  
   for (const auto &track : recently_played) {
+    std::string track_str = track.to_string(); // Call once instead of in loop
+    
     // Check if this exact track is not already in unique list
-    auto it = std::find_if(unique_recently_played.begin(),
-                           unique_recently_played.end(),
-                           [&track](const Track &existing) {
-                             return existing.to_string() == track.to_string();
-                           });
-
-    if (it == unique_recently_played.end()) {
+    if (seen_tracks.find(track_str) == seen_tracks.end()) {
+      seen_tracks.insert(track_str);
       unique_recently_played.push_back(track);
     }
   }
 
-  // Keep only the last 10 tracks
-  if (unique_recently_played.size() > 10) {
+  // Keep only the last MAX_RECENT_TRACKS tracks
+  if (unique_recently_played.size() > MAX_RECENT_TRACKS) {
     unique_recently_played = std::vector<Track>(
-        unique_recently_played.end() - 10, unique_recently_played.end());
+        unique_recently_played.end() - MAX_RECENT_TRACKS, unique_recently_played.end());
   }
 
   // Populate track_data and recently_played_strings
   track_data = unique_recently_played;
+  recently_played_strings.reserve(track_data.size()); // Pre-allocate
   for (const auto &recent : track_data) {
     recently_played_strings.push_back(recent.to_string());
   }

@@ -5,9 +5,50 @@
 #include <rapidjson/document.h>
 #include <string>
 #include <vector>
+#include <memory>
+
+// Performance tuning constants
+namespace {
+  constexpr size_t INITIAL_BUFFER_SIZE = 8192;
+}
 
 class Saavn {
+    private:
+        // Reusable CURL handle for better performance
+        std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl_handle{nullptr, curl_easy_cleanup};
+        struct curl_slist *headers = nullptr;
+
+        void init_curl() {
+            if (!curl_handle) {
+                curl_handle.reset(curl_easy_init());
+                if (curl_handle) {
+                    // Set up headers once
+                    headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
+                    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+                    
+                    // Enable connection reuse and keep-alive
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_TCP_KEEPALIVE, 1L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_TCP_KEEPIDLE, 120L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_TCP_KEEPINTVL, 60L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_USERAGENT, "Mozilla/5.0");
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_FOLLOWLOCATION, 1L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_HTTPHEADER, headers);
+                }
+            }
+        }
+
     public:
+        Saavn() {
+            init_curl();
+        }
+
+        ~Saavn() {
+            if (headers) {
+                curl_slist_free_all(headers);
+                headers = nullptr;
+            }
+        }
+
         // Callback for CURL
         static size_t WriteCallback(void *contents, size_t size, size_t nmemb,
                 std::string *userp) {
@@ -88,29 +129,20 @@ class Saavn {
         }
 
         std::string make_request(const std::string &url) {
-            CURL *curl = curl_easy_init();
+            init_curl();
             std::string readBuffer;
+            readBuffer.reserve(INITIAL_BUFFER_SIZE); // Pre-allocate reasonable buffer size
 
-            if (curl) {
-                struct curl_slist *headers = NULL;
-                headers = curl_slist_append(
-                        headers, "Accept: text/html,application/xhtml+xml,application/xml");
-                headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+            if (curl_handle) {
+                curl_easy_setopt(curl_handle.get(), CURLOPT_URL, url.c_str());
+                curl_easy_setopt(curl_handle.get(), CURLOPT_WRITEFUNCTION, WriteCallback);
+                curl_easy_setopt(curl_handle.get(), CURLOPT_WRITEDATA, &readBuffer);
 
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-                curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0");
-                curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-                CURLcode res = curl_easy_perform(curl);
+                CURLcode res = curl_easy_perform(curl_handle.get());
                 if (res != CURLE_OK) {
                     fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
                     readBuffer = "Error";
                 }
-                curl_easy_cleanup(curl);
-                curl_slist_free_all(headers);
             } else {
                 readBuffer = "Error: Failed to initialize CURL.";
             }
@@ -119,14 +151,16 @@ class Saavn {
 
 
         std::vector<Track> fetch_tracks(const std::string &search_query) {
-            CURL *curl = curl_easy_init();
-            if (!curl) {
+            init_curl();
+            if (!curl_handle) {
                 throw std::runtime_error("CURL initialization failed.");
             }
-            std::string url = "https://www.jiosaavn.com/api.php?p=1&q=" +
-                std::string(curl_easy_escape(curl, search_query.c_str(), search_query.length())) +
+            
+            // Use the reusable handle for URL escaping
+            char* escaped = curl_easy_escape(curl_handle.get(), search_query.c_str(), search_query.length());
+            std::string url = "https://www.jiosaavn.com/api.php?p=1&q=" + std::string(escaped) +
                 "&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults";
-            curl_easy_cleanup(curl);
+            curl_free(escaped);
 
             std::string readBuffer = make_request(url);
             return extractTracks(readBuffer);
@@ -139,21 +173,20 @@ class Saavn {
         }
 
         std::vector<Track> fetch_next_tracks(std::string id) {
-            CURL *curl = curl_easy_init();
-            if (!curl) {
+            init_curl();
+            if (!curl_handle) {
                 throw std::runtime_error("CURL initialization failed.");
             }
 
-            std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + std::string(curl_easy_escape(curl, id.c_str(), id.length()));
-            // std::cout << url << std::endl;
-            curl_easy_cleanup(curl);
+            // Use the reusable handle for URL escaping
+            char* escaped = curl_easy_escape(curl_handle.get(), id.c_str(), id.length());
+            std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + std::string(escaped);
+            curl_free(escaped);
+            
             std::string readBuffer = make_request(url);
-            // std::cout << readBuffer  << readBuffer.size()<< std::endl;
 
             if(readBuffer.size() == 2) {
-                // std::cout << "in fi";
                 std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=song&entity_language=english";
-                curl_easy_cleanup(curl);
                 std::string readBuffer = make_request(url);
                 return extractTrendingTracks(readBuffer);
             }
