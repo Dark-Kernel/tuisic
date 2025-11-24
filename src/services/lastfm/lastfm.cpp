@@ -7,6 +7,12 @@
 #include "../../common/Track.h"
 #include <mpv/client.h>
 
+// Performance tuning constants
+namespace {
+  constexpr size_t INITIAL_BUFFER_SIZE = 16384;
+  constexpr size_t EXPECTED_TRACK_COUNT = 9;
+}
+
 class Lastfm {
     private:
         // Reusable CURL handle for better performance
@@ -59,13 +65,13 @@ class Lastfm {
         // Function to extract tracks from HTML
         std::vector<Track> extractTracks(const std::string& html) {
             std::vector<Track> tracks;
-            tracks.reserve(9); // Pre-allocate expected size
+            tracks.reserve(EXPECTED_TRACK_COUNT); // Pre-allocate expected size
             
             const auto& pattern = get_track_pattern();
             auto matches_begin = std::sregex_iterator(html.begin(), html.end(), pattern);
             auto matches_end = std::sregex_iterator();
 
-            for (std::sregex_iterator i = matches_begin; i != matches_end && tracks.size() < 9; ++i) {
+            for (std::sregex_iterator i = matches_begin; i != matches_end && tracks.size() < EXPECTED_TRACK_COUNT; ++i) {
                 std::smatch match = *i;
                 Track track;
                 track.url = match[1];
@@ -83,7 +89,7 @@ class Lastfm {
         std::vector<Track> fetch_tracks(const std::string& search_query) {
             init_curl();
             std::string readBuffer;
-            readBuffer.reserve(16384); // Pre-allocate reasonable buffer size
+            readBuffer.reserve(INITIAL_BUFFER_SIZE); // Pre-allocate reasonable buffer size
             std::vector<Track> tracks;
 
             if(curl_handle) {

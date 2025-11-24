@@ -42,6 +42,11 @@
 #include "../ai/command_handler.hpp"
 #include "../ai/mcp_server.hpp"
 
+// Performance tuning constants
+namespace {
+  constexpr size_t MAX_RECENT_TRACKS = 10;
+}
+
 // Data in string to render in UI
 std::vector<std::string> track_strings;
 std::vector<std::string> home_track_strings;
@@ -132,13 +137,14 @@ auto searchQuery(const std::string &query) {
   std::vector<std::future<std::vector<Track>>> futures;
   futures.reserve(3);
   
-  futures.push_back(std::async(std::launch::async, [&]() { 
+  // Capture query by value to ensure thread safety
+  futures.push_back(std::async(std::launch::async, [query, &saavn]() { 
     return saavn.fetch_tracks(query); 
   }));
-  futures.push_back(std::async(std::launch::async, [&]() { 
+  futures.push_back(std::async(std::launch::async, [query, &lastfm]() { 
     return lastfm.fetch_tracks(query); 
   }));
-  futures.push_back(std::async(std::launch::async, [&]() { 
+  futures.push_back(std::async(std::launch::async, [query, &soundcloud]() { 
     return soundcloud.fetch_tracks(query); 
   }));
   
@@ -176,11 +182,11 @@ auto fetch_recent() {
   recently_played_strings.clear();
   track_data.clear();
 
-  // Limit recently played to last 10 unique tracks
+  // Limit recently played to last MAX_RECENT_TRACKS unique tracks
   // Use unordered_set for O(1) lookups instead of O(n) find_if
   std::vector<Track> unique_recently_played;
   std::unordered_set<std::string> seen_tracks;
-  unique_recently_played.reserve(10); // Pre-allocate
+  unique_recently_played.reserve(MAX_RECENT_TRACKS); // Pre-allocate
   
   for (const auto &track : recently_played) {
     std::string track_str = track.to_string(); // Call once instead of in loop
@@ -192,10 +198,10 @@ auto fetch_recent() {
     }
   }
 
-  // Keep only the last 10 tracks
-  if (unique_recently_played.size() > 10) {
+  // Keep only the last MAX_RECENT_TRACKS tracks
+  if (unique_recently_played.size() > MAX_RECENT_TRACKS) {
     unique_recently_played = std::vector<Track>(
-        unique_recently_played.end() - 10, unique_recently_played.end());
+        unique_recently_played.end() - MAX_RECENT_TRACKS, unique_recently_played.end());
   }
 
   // Populate track_data and recently_played_strings

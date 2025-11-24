@@ -7,6 +7,11 @@
 #include <vector>
 #include <memory>
 
+// Performance tuning constants
+namespace {
+  constexpr size_t INITIAL_BUFFER_SIZE = 8192;
+}
+
 class Saavn {
     private:
         // Reusable CURL handle for better performance
@@ -126,7 +131,7 @@ class Saavn {
         std::string make_request(const std::string &url) {
             init_curl();
             std::string readBuffer;
-            readBuffer.reserve(8192); // Pre-allocate reasonable buffer size
+            readBuffer.reserve(INITIAL_BUFFER_SIZE); // Pre-allocate reasonable buffer size
 
             if (curl_handle) {
                 curl_easy_setopt(curl_handle.get(), CURLOPT_URL, url.c_str());
