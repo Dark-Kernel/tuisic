@@ -23,6 +23,7 @@
 #include <iostream>
 #include <map>
 #include <sched.h>
+#include <unordered_set>
 
 #ifdef WITH_MPRIS
 #include <sdbus-c++/IConnection.h>
@@ -176,16 +177,17 @@ auto fetch_recent() {
   track_data.clear();
 
   // Limit recently played to last 10 unique tracks
+  // Use unordered_set for O(1) lookups instead of O(n) find_if
   std::vector<Track> unique_recently_played;
+  std::unordered_set<std::string> seen_tracks;
+  unique_recently_played.reserve(10); // Pre-allocate
+  
   for (const auto &track : recently_played) {
+    std::string track_str = track.to_string(); // Call once instead of in loop
+    
     // Check if this exact track is not already in unique list
-    auto it = std::find_if(unique_recently_played.begin(),
-                           unique_recently_played.end(),
-                           [&track](const Track &existing) {
-                             return existing.to_string() == track.to_string();
-                           });
-
-    if (it == unique_recently_played.end()) {
+    if (seen_tracks.find(track_str) == seen_tracks.end()) {
+      seen_tracks.insert(track_str);
       unique_recently_played.push_back(track);
     }
   }
@@ -198,6 +200,7 @@ auto fetch_recent() {
 
   // Populate track_data and recently_played_strings
   track_data = unique_recently_played;
+  recently_played_strings.reserve(track_data.size()); // Pre-allocate
   for (const auto &recent : track_data) {
     recently_played_strings.push_back(recent.to_string());
   }
