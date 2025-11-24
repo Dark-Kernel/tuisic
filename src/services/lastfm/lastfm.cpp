@@ -3,11 +3,53 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <memory>
 #include "../../common/Track.h"
 #include <mpv/client.h>
 
 class Lastfm {
+    private:
+        // Reusable CURL handle for better performance
+        std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl_handle{nullptr, curl_easy_cleanup};
+        struct curl_slist *headers = nullptr;
+        
+        // Cached regex pattern for better performance
+        static const std::regex& get_track_pattern() {
+            static const std::regex pattern("chartlist-play-button[^>]*href=\"([^\"]+)\"[^>]*data-track-name=\"([^\"]+)\"[^>]*data-artist-name=\"([^\"]+)\"");
+            return pattern;
+        }
+
+        void init_curl() {
+            if (!curl_handle) {
+                curl_handle.reset(curl_easy_init());
+                if (curl_handle) {
+                    // Set up headers once
+                    headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
+                    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+                    
+                    // Enable connection reuse and keep-alive
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_TCP_KEEPALIVE, 1L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_TCP_KEEPIDLE, 120L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_TCP_KEEPINTVL, 60L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_USERAGENT, "Mozilla/5.0");
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_FOLLOWLOCATION, 1L);
+                    curl_easy_setopt(curl_handle.get(), CURLOPT_HTTPHEADER, headers);
+                }
+            }
+        }
+
     public:
+        Lastfm() {
+            init_curl();
+        }
+
+        ~Lastfm() {
+            if (headers) {
+                curl_slist_free_all(headers);
+                headers = nullptr;
+            }
+        }
+
         // Callback for CURL
         static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
             userp->append((char*)contents, size * nmemb);
@@ -17,8 +59,9 @@ class Lastfm {
         // Function to extract tracks from HTML
         std::vector<Track> extractTracks(const std::string& html) {
             std::vector<Track> tracks;
-            std::regex pattern("chartlist-play-button[^>]*href=\"([^\"]+)\"[^>]*data-track-name=\"([^\"]+)\"[^>]*data-artist-name=\"([^\"]+)\"");
-
+            tracks.reserve(9); // Pre-allocate expected size
+            
+            const auto& pattern = get_track_pattern();
             auto matches_begin = std::sregex_iterator(html.begin(), html.end(), pattern);
             auto matches_end = std::sregex_iterator();
 
@@ -30,7 +73,7 @@ class Lastfm {
                 track.artist = match[3];
                 track.id = track.name;
                 track.source = "lastfm";
-                tracks.push_back(track);
+                tracks.push_back(std::move(track));
             }
 
             return tracks;
@@ -38,33 +81,25 @@ class Lastfm {
 
         // Main function to fetch tracks
         std::vector<Track> fetch_tracks(const std::string& search_query) {
-            CURL* curl = curl_easy_init();
+            init_curl();
             std::string readBuffer;
+            readBuffer.reserve(16384); // Pre-allocate reasonable buffer size
             std::vector<Track> tracks;
 
-            if(curl) {
-                std::string url = "https://www.last.fm/search?q=";
-                url += curl_easy_escape(curl, search_query.c_str(), search_query.length());
+            if(curl_handle) {
+                char* escaped = curl_easy_escape(curl_handle.get(), search_query.c_str(), search_query.length());
+                std::string url = "https://www.last.fm/search?q=" + std::string(escaped);
+                curl_free(escaped);
 
-                struct curl_slist *headers = NULL;
-                headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
-                headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+                curl_easy_setopt(curl_handle.get(), CURLOPT_URL, url.c_str());
+                curl_easy_setopt(curl_handle.get(), CURLOPT_WRITEFUNCTION, WriteCallback);
+                curl_easy_setopt(curl_handle.get(), CURLOPT_WRITEDATA, &readBuffer);
 
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-                curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0");
-                curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-                CURLcode res = curl_easy_perform(curl);
+                CURLcode res = curl_easy_perform(curl_handle.get());
 
                 if(res == CURLE_OK) {
                     tracks = extractTracks(readBuffer);
                 }
-
-                curl_easy_cleanup(curl);
-                curl_slist_free_all(headers);
             }
 
             return tracks;
