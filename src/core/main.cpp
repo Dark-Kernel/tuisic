@@ -19,6 +19,7 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/screen_interactive.hpp> // for ScreenInteractive
 #include <ftxui/screen/color.hpp>
+#include <future>
 #include <iostream>
 #include <map>
 #include <sched.h>
@@ -126,19 +127,40 @@ std::vector<std::string> get_track_ascii_art(const Track &track) {
 }
 
 auto searchQuery(const std::string &query) {
-  track_data_saavn = saavn.fetch_tracks(query);
+  // Launch all API calls in parallel for better performance
+  std::vector<std::future<std::vector<Track>>> futures;
+  futures.reserve(3);
+  
+  futures.push_back(std::async(std::launch::async, [&]() { 
+    return saavn.fetch_tracks(query); 
+  }));
+  futures.push_back(std::async(std::launch::async, [&]() { 
+    return lastfm.fetch_tracks(query); 
+  }));
+  futures.push_back(std::async(std::launch::async, [&]() { 
+    return soundcloud.fetch_tracks(query); 
+  }));
+  
+  // Collect results
+  track_data_saavn = futures[0].get();
   track_data = track_data_saavn;
-  track_data_lastfm = lastfm.fetch_tracks(query);
-  track_data_soundcloud = soundcloud.fetch_tracks(query);
-  for (const auto &track : track_data_soundcloud) {
-    track_data.push_back(track);
+  track_data_lastfm = futures[1].get();
+  track_data_soundcloud = futures[2].get();
+  
+  // Pre-allocate space to avoid multiple reallocations
+  track_data.reserve(track_data.size() + track_data_soundcloud.size() + track_data_lastfm.size());
+  
+  // Use move semantics for better performance
+  for (auto &track : track_data_soundcloud) {
+    track_data.push_back(std::move(track));
   }
-  for (const auto &track : track_data_lastfm) {
-    track_data.push_back(track);
+  for (auto &track : track_data_lastfm) {
+    track_data.push_back(std::move(track));
   }
 
   home_track_data = track_data;
   track_strings.clear();
+  track_strings.reserve(track_data.size()); // Pre-allocate
 
   // Convert tracks to display strings for menu UI
   for (const auto &track : track_data) {
