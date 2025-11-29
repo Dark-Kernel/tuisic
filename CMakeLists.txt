@@ -6,7 +6,10 @@ option(WITH_MPRIS "Enable MPRIS support (via sdbus‑c++)" ON)
 option(WITH_CAVA  "Build CAVA visualiser"               OFF)
 option(WITH_DISCORD "Enable Discord Rich Presence"      OFF)
 
-add_executable(tuisic src/core/main.cpp)
+add_executable(tuisic
+  src/core/main.cpp
+  src/audio/lyrics_fetcher.cpp
+)
 
 # git submodules
 find_package(Git REQUIRED)

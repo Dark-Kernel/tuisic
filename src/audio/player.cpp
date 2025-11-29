@@ -3,6 +3,7 @@
 #include "../common/Track.h"
 #include "../core/config/config.hpp"
 #include "../common/notification.hpp"
+#include "lyrics_fetcher.hpp"
 #ifdef WITH_CAVA
 #include "visualizer.hpp"
 #include "audio_capture.hpp"
@@ -64,6 +65,13 @@ private:
 
   // Subtitle management - changed to avoid atomic<shared_ptr>
   std::string current_subtitle{""};
+  std::atomic_bool subtitles_enabled{true}; // Toggle for showing/hiding subtitles
+
+  // Lyrics management
+  std::unique_ptr<tuisic::LyricsFetcher> lyrics_fetcher;
+  std::vector<tuisic::LyricLine> current_lyrics;
+  std::atomic_bool has_lyrics{false};
+  std::atomic_bool fetching_lyrics{false};
 
   // Callbacks
   std::function<void()> on_state_change;
@@ -97,7 +105,7 @@ private:
   }
 
 public:
-  MusicPlayer() {
+  MusicPlayer() : lyrics_fetcher(std::make_unique<tuisic::LyricsFetcher>()) {
     // Create MPV handle with error checking
     mpv.reset(mpv_create());
     if (!mpv) {
@@ -215,7 +223,14 @@ public:
   // Subtitle management methods
   void update_subtitle(const char *new_subtitle) {
     std::lock_guard<std::mutex> lock(player_mutex); // Thread-safe update
-    current_subtitle = new_subtitle ? new_subtitle : "";
+
+    // Only update if subtitles are enabled
+    if (subtitles_enabled) {
+      current_subtitle = new_subtitle ? new_subtitle : "";
+    } else {
+      current_subtitle = "";
+    }
+
     if (on_subtitle_change) {
       try {
         on_subtitle_change(current_subtitle);
@@ -226,9 +241,67 @@ public:
   }
 
   void toggle_subtitles() {
-    std::lock_guard<std::mutex> lock(player_mutex);
-    const char *cmd[] = {"cycle", "sub", NULL};
-    mpv_command_async(mpv.get(), 0, cmd);
+    subtitles_enabled = !subtitles_enabled;
+
+    // Clear subtitle immediately when disabling
+    if (!subtitles_enabled) {
+      std::lock_guard<std::mutex> lock(player_mutex);
+      current_subtitle = "";
+      if (on_subtitle_change) {
+        try {
+          on_subtitle_change(current_subtitle);
+        } catch (const std::exception &e) {
+          log_error("Subtitle callback failed: " + std::string(e.what()));
+        }
+      }
+    }
+
+    notifications::send(subtitles_enabled ? "Subtitles enabled" : "Subtitles disabled");
+  }
+
+  bool are_subtitles_enabled() const {
+    return subtitles_enabled;
+  }
+
+  // Fetch lyrics asynchronously for the current track
+  void fetch_lyrics_async() {
+    if (current_track_index < 0 || current_track_index >= current_track_data.size()) {
+      return;
+    }
+
+    if (fetching_lyrics.exchange(true)) {
+      return; // Already fetching
+    }
+
+    // Get track info
+    Track current_track = current_track_data[current_track_index];
+
+    // Fetch in a separate thread to avoid blocking
+    std::thread([this, current_track]() {
+      try {
+        auto lyrics_opt = lyrics_fetcher->fetch_lyrics(current_track.artist, current_track.name);
+
+        if (lyrics_opt.has_value()) {
+          auto parsed_lyrics = lyrics_fetcher->parse_lrc(lyrics_opt.value());
+
+          std::lock_guard<std::mutex> lock(player_mutex);
+          current_lyrics = std::move(parsed_lyrics);
+          has_lyrics = !current_lyrics.empty();
+
+          if (has_lyrics) {
+            notifications::send("Lyrics loaded for: " + current_track.name);
+          } else {
+            notifications::send("No synced lyrics available for: " + current_track.name);
+          }
+        } else {
+          notifications::send("Failed to fetch lyrics for: " + current_track.name);
+        }
+      } catch (const std::exception& e) {
+        log_error("Lyrics fetch error: " + std::string(e.what()));
+      }
+
+      fetching_lyrics = false;
+    }).detach();
   }
 
   std::string get_current_subtitle() const {
@@ -347,6 +420,19 @@ public:
       }
 #endif
     }
+  }
+
+  // Overload that accepts Track object for lyrics support
+  void play(const Track &track) {
+    {
+      std::lock_guard<std::mutex> lock(player_mutex);
+      // Update current track data for lyrics fetching
+      current_track_data.clear();
+      current_track_data.push_back(track);
+      current_track_index = 0;
+    }
+    // Call the regular play method
+    play(track.url);
   }
 
   void pause() {
@@ -567,12 +653,27 @@ private:
         handle_file_loaded();
         break;
       case MPV_EVENT_TICK: {
-        char *sub_text = NULL;
-        if (mpv_get_property(mpv.get(), "sub-text", MPV_FORMAT_STRING,
-                             &sub_text) >= 0) {
-          if (sub_text) {
-            update_subtitle(sub_text);
-            mpv_free(sub_text);
+        // Priority: fetched lyrics > mpv subtitles
+        if (has_lyrics && !current_lyrics.empty()) {
+          // Use fetched lyrics synced with playback position
+          double pos = get_position();
+          std::string lyric_text;
+          {
+            std::lock_guard<std::mutex> lock(player_mutex);
+            lyric_text = lyrics_fetcher->get_current_lyric(current_lyrics, pos);
+          }
+          if (!lyric_text.empty() && lyric_text != current_subtitle) {
+            update_subtitle(lyric_text.c_str());
+          }
+        } else {
+          // Fallback to mpv subtitles (for YouTube)
+          char *sub_text = NULL;
+          if (mpv_get_property(mpv.get(), "sub-text", MPV_FORMAT_STRING,
+                               &sub_text) >= 0) {
+            if (sub_text) {
+              update_subtitle(sub_text);
+              mpv_free(sub_text);
+            }
           }
         }
         break;
@@ -615,6 +716,25 @@ private:
     is_loaded = true;
     is_playing = true;
     is_paused = false;
+
+    // Clear previous lyrics and subtitle, then fetch new ones
+    {
+      std::lock_guard<std::mutex> lock(player_mutex);
+      current_lyrics.clear();
+      has_lyrics = false;
+      current_subtitle = "";
+
+      // Notify UI to clear subtitle display
+      if (on_subtitle_change) {
+        try {
+          on_subtitle_change(current_subtitle);
+        } catch (const std::exception &e) {
+          log_error("Subtitle callback failed: " + std::string(e.what()));
+        }
+      }
+    }
+    fetch_lyrics_async();
+
     if (on_state_change) {
       on_state_change();
     }

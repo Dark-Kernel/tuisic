@@ -411,7 +411,9 @@ int main(int argc, char *argv[]) {
       next_track_urls.push_back(track.url);
     }
     player->create_playlist(next_track_urls);
-    player->play(current_track_url);
+    // Create Track object for lyrics support
+    Track current_track_obj{current_track_name, current_track_artist, current_track_url, current_track_id, "saavn"};
+    player->play(current_track_obj);
     int current_track_indexx = player->get_current_playlist_index();
     // system(("notify-send 'Tuisic' 'Playing'" +
     //         std::to_string(current_track_indexx))
@@ -752,7 +754,7 @@ int main(int argc, char *argv[]) {
                   //         track_data[selected].url)
                   //            .c_str());
                 if(track_data[selected].source=="lastfm"){
-                    player->play(track_data[selected].url);
+                    player->play(track_data[selected]);
                     return;
                 }
                 if(track_data[selected].source=="soundcloud"){
@@ -787,7 +789,7 @@ int main(int argc, char *argv[]) {
                   }
                   player->create_playlist(next_track_urls);
                   current_track_index = 0;
-                  player->play(next_tracks[0].url);
+                  player->play(next_tracks[0]);
 
 
                 #ifdef WITH_MPRIS
@@ -866,9 +868,9 @@ int main(int argc, char *argv[]) {
           }
         }
         if (event == Event::Character('L')) {
-          //std::cerr << "pressed L" << std::endl;
-            notifications::send("toggle subtitles");
           player->toggle_subtitles();
+          screen.PostEvent(Event::Custom); // Refresh UI to show/hide subtitle section
+          return true;
         }
 
         if (event == Event::Character('a')) {
@@ -1090,7 +1092,7 @@ int main(int argc, char *argv[]) {
               // Update current track info
               current_track = track_data_forestfm[0].name;
               current_artist = track_data_forestfm[0].artist;
-              player->play(track_data_forestfm[0].url);
+              player->play(track_data_forestfm[0]);
               button_text = "Pause";
             }
             screen.PostEvent(Event::Custom);
@@ -1240,7 +1242,7 @@ int main(int argc, char *argv[]) {
         !track_data_forestfm.empty()) {
       current_track_index =
           (current_track_index + 1) % track_data_forestfm.size();
-      player->play(track_data_forestfm[current_track_index].url);
+      player->play(track_data_forestfm[current_track_index]);
 
       current_track = track_data_forestfm[current_track_index].name;
       current_artist = track_data_forestfm[current_track_index].artist;
@@ -1594,17 +1596,17 @@ int main(int argc, char *argv[]) {
                          vscroll_indicator | yframe | flex |
                          size(HEIGHT, EQUAL, 22)}),
 
-                // text("Subtitles: " + current_subtitle_text) |
-                // color(Color::Blue),
-                ////////////////////// Working subtitles
-                ////////////////////////////
-                /* hbox({ */
-                /*     text("Subtitle: ") | bold | color(Color::LightSkyBlue1),
-                 */
-                /*     text(current_subtitle_text), */
-                /* }), */
-
-                separator(),
+                // Conditionally render subtitle section based on toggle state
+                (player->are_subtitles_enabled() && !current_subtitle_text.empty()) ?
+                  vbox({
+                    hbox({
+                      text("Subtitle: ") | bold | color(Color::LightSkyBlue1),
+                      text(current_subtitle_text),
+                    }),
+                    separator(),
+                  }) : vbox({
+                        separator(),
+                      }),
             }) | flex,
         }),
         filler(),
