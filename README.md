@@ -23,6 +23,7 @@ First app of its kind, It let's you search and play online songs from cli hassle
 - Cava Visualizer (BETA)
 - Support for AI Integration via [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA)
 - Support for [Discord Rich Presence](https://discord.com/developers/docs/topics/gateway#activity-object)
+- Lyrics support (BETA)
 
 ## Shortcuts
 
@@ -39,6 +40,7 @@ First app of its kind, It let's you search and play online songs from cli hassle
 | `.` | seek forward |
 | `,` | seek backward |
 | `m` | mute |
+| `L` | Toggle lyrics |
 
 
 
