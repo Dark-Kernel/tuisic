@@ -7,6 +7,7 @@ struct Track {
     std::string url;
     std::string id;
     std::string source;
+    std::string coverImage;
     
     // Convert to display string for FTXUI menu
     std::string to_string() const {
