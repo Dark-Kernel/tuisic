@@ -54,6 +54,7 @@ class SoundCloud{
                 }
                 tracks.push_back(track);
             }
+
             return tracks;
         }
 
@@ -62,6 +63,9 @@ class SoundCloud{
             std::vector<Track> tracks;
             // Regex pattern for user profile tracks
             std::regex pattern("itemprop=\"url\"[^>]*href=\"([^\"]*)\"");
+
+            std::regex artworkPattern("img[^>]*src=\"([^\"]*)\"");
+
 
             auto matches_begin = std::sregex_iterator(html.begin(), html.end(), pattern);
             auto matches_end = std::sregex_iterator();
@@ -72,6 +76,14 @@ class SoundCloud{
                 Track track;
                 track.url = match[1];
                 tracks.push_back(track);
+            }
+
+            auto art_begin = std::sregex_iterator(html.begin(), html.end(), artworkPattern);
+            auto art_end = std::sregex_iterator();
+
+            size_t idx = 0;
+            for (auto it = art_begin; it != art_end && idx < tracks.size(); ++it, ++idx) {
+                tracks[idx].coverImage = (*it)[1];
             }
 
             return tracks;
@@ -232,11 +244,11 @@ class SoundCloud{
 // int main (int argc, char *argv[]) {
 //     // std::vector<SoundCloudTrack> tracks = fetch_soundcloud_tracks("https://soundcloud.com/bonesla");
 //     SoundCloud fetch;
-//     auto tracks = fetch.fetch_tracks("meeting after a decade");
+//     auto tracks = fetch.fetch_tracks("bones");
 //     // auto user_tracks = fetch_soundcloud_tracks("bonesla", true);
 
 //     for (const auto& track : tracks) {
-//         std::cout << track.url << std::endl;
+//         std::cout << track.url << ", " << track.name << ", " << track.coverImage << ",; " << std::endl;
 //     }
 //     auto user_tracks = fetch.fetch_next_tracks("https://soundcloud.com/rjpp2ovwcy3r/imagine-dragons-bones-5");
 

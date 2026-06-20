@@ -19,6 +19,12 @@ class Lastfm {
             std::vector<Track> tracks;
             std::regex pattern("chartlist-play-button[^>]*href=\"([^\"]+)\"[^>]*data-track-name=\"([^\"]+)\"[^>]*data-artist-name=\"([^\"]+)\"");
 
+            std::regex imagePattern(
+                    R"IMG(chartlist-image[^>]*>\s*<a[^>]*>\s*<img[^>]*src="([^"]+)")IMG",
+                    std::regex::icase
+                    );
+
+
             auto matches_begin = std::sregex_iterator(html.begin(), html.end(), pattern);
             auto matches_end = std::sregex_iterator();
 
@@ -32,6 +38,14 @@ class Lastfm {
                 track.source = "lastfm";
                 tracks.push_back(track);
             }
+            auto img_begin = std::sregex_iterator(html.begin(), html.end(), imagePattern);
+            auto img_end = std::sregex_iterator();
+
+            size_t idx = 0;
+            for (auto it = img_begin; it != img_end && idx < tracks.size(); ++it, ++idx) {
+                tracks[idx].coverImage = (*it)[1];
+            }
+
 
             return tracks;
         }
@@ -77,7 +91,7 @@ class Lastfm {
 //     Lastfm lastfm;
 //     std::vector<Track> tracks = lastfm.fetch_tracks("kali kali zulfon");
 //     for (const auto& track : tracks) {
-//         std::cout << "Track: " << track.name << ", Artist: " << track.artist << ", URL: " << track.url << std::endl;
+//         std::cout << "Track: " << track.name << ", Artist: " << track.artist << ", URL: " << track.url << ", IMAGE: "<< track.coverImage <<std::endl;
 //     }
     
 //     return 0;

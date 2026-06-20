@@ -15,6 +15,7 @@ private:
   // Track data callbacks
   std::function<std::string()> get_track_name;
   std::function<std::string()> get_track_artist;
+  std::function<std::string()> get_cover_image;
   std::function<bool()> is_playing;
 
 public:
@@ -40,9 +41,11 @@ public:
   void setTrackCallbacks(
       std::function<std::string()> track_name_cb,
       std::function<std::string()> track_artist_cb,
+      std::function<std::string()> cover_image_cb,
       std::function<bool()> is_playing_cb) {
     get_track_name = track_name_cb;
     get_track_artist = track_artist_cb;
+    get_cover_image = cover_image_cb;
     is_playing = is_playing_cb;
   }
 
@@ -63,8 +66,16 @@ public:
     DiscordRichPresence presence{};
     presence.details = track_name.c_str();
     presence.state = track_artist.c_str();
-    presence.largeImageKey = "default";
-    presence.largeImageText = "tuisic - TUI Music Player";
+    
+    // Use cover image if available, otherwise fall back to default
+    std::string cover_image = get_cover_image ? get_cover_image() : "";
+    if (!cover_image.empty()) {
+      presence.largeImageKey = cover_image.c_str();
+      presence.largeImageText = "Cover Art";
+    } else {
+      presence.largeImageKey = "default";
+      presence.largeImageText = "tuisic - TUI Music Player";
+    }
 
     // Optional: Add playback state icon
     if (is_playing && is_playing()) {
@@ -138,6 +149,13 @@ public:
           return (source.empty() || current_track_index >= source.size())
                      ? ""
                      : source[current_track_index].artist;
+        },
+        [this]() -> std::string {
+          // Use next_tracks if available, otherwise fall back to track_data
+          auto &source = !next_tracks.empty() ? next_tracks : track_data;
+          return (source.empty() || current_track_index >= source.size())
+                     ? ""
+                     : source[current_track_index].coverImage;
         },
         [this]() -> bool {
           return player && player->is_playing_state();

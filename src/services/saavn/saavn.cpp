@@ -22,6 +22,7 @@ class Saavn {
             for(const auto &result : doc.GetArray()){
                 Track track;
                 track.name = result["title"].GetString();
+                track.coverImage = result["image"].GetString();
                 track.id = result["id"].GetString();
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["primary_artists"][0]["name"].GetString();
@@ -39,6 +40,7 @@ class Saavn {
             for(const auto &result : doc.GetArray()){
                 Track track;
                 track.name = result["title"].GetString();
+                track.coverImage = result["image"].GetString();
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["artists"][0]["name"].GetString();
                 track.source = "saavn";
@@ -56,6 +58,9 @@ class Saavn {
                     Track track;
                     if (result.HasMember("title") && result["title"].IsString()) {
                         track.name = result["title"].GetString();
+                    }
+                    if (result.HasMember("image") && result["image"].IsString()) {
+                        track.coverImage = result["image"].GetString();
                     }
                     if (result.HasMember("id") && result["id"].IsString()) {
                         track.id = result["id"].GetString();
