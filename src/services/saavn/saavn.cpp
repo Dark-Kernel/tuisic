@@ -27,6 +27,7 @@ class Saavn {
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["primary_artists"][0]["name"].GetString();
                 track.source = "saavn";
+                track.language = result["language"].GetString();
                 tracks.push_back(track);
             }
             // std::cout << "NEXT TRACKS \n" << tracks[0].name << std::endl;
@@ -44,6 +45,7 @@ class Saavn {
                 track.url = result["perma_url"].GetString();
                 track.artist = result["more_info"]["artistMap"]["artists"][0]["name"].GetString();
                 track.source = "saavn";
+                track.language = result["language"].GetString();
                 tracks.push_back(track);
             }
             return tracks;
@@ -67,6 +69,9 @@ class Saavn {
                     }
                     if (result.HasMember("perma_url") && result["perma_url"].IsString()) {
                         track.url = result["perma_url"].GetString();
+                    }
+                    if (result.HasMember("language") && result["language"].IsString()) {
+                        track.language = result["language"].GetString();
                     }
                     if (result.HasMember("more_info") && result["more_info"].IsObject()) {
                         const auto &more_info = result["more_info"];
@@ -137,27 +142,28 @@ class Saavn {
             return extractTracks(readBuffer);
         }
 
-        std::vector<Track> fetch_trending() {
-            std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=album&entity_language=english";
+        std::vector<Track> fetch_trending(std::string language = "english") {
+            std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=album&entity_language=" + language;
             std::string readBuffer = make_request(url);
             return extractTrendingTracks(readBuffer);
         }
 
-        std::vector<Track> fetch_next_tracks(std::string id) {
+        std::vector<Track> fetch_next_tracks(std::string id, std::string language = "english") {
             CURL *curl = curl_easy_init();
             if (!curl) {
                 throw std::runtime_error("CURL initialization failed.");
             }
 
             std::string url = "https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=web6dot0&pid=" + std::string(curl_easy_escape(curl, id.c_str(), id.length()));
-            // std::cout << url << std::endl;
+            // std::cout << "[NEXT TRACK]:  " << url << std::endl;
             curl_easy_cleanup(curl);
             std::string readBuffer = make_request(url);
             // std::cout << readBuffer  << readBuffer.size()<< std::endl;
 
             if(readBuffer.size() == 2) {
                 // std::cout << "in fi";
-                std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=song&entity_language=english";
+                // std::cout << "[TRENDING] ====== No next track found" << std::endl;
+                std::string url = "https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=web6dot0&entity_type=song&entity_language=" + std::string(curl_easy_escape(curl, language.c_str(), language.length()));
                 curl_easy_cleanup(curl);
                 std::string readBuffer = make_request(url);
                 return extractTrendingTracks(readBuffer);
@@ -178,6 +184,7 @@ class Saavn {
 //        std::cout << "Title: " << track.name << "\n";
 //        std::cout << "URL: " << track.url << "\n";
 //        std::cout << "Primary Artists: " << track.artist << "\n";
+//        std::cout << "Language: " << track.language << "\n";
 //         for (const auto& artist : track.artist) {
 //             std::cout << artist << "";
 //         }
@@ -190,6 +197,7 @@ class Saavn {
 //        std::cout << "Title: " << track.name << "\n";
 //        std::cout << "URL: " << track.url << "\n";
 //        std::cout << "Primary Artists: " << track.artist << "\n";
+//        std::cout << "Language: " << track.language << "\n";
 //         for (const auto& artist : track.artist) {
 //             std::cout << artist << "";
 //         }

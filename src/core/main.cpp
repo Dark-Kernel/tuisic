@@ -761,7 +761,7 @@ int main(int argc, char *argv[]) {
                     next_tracks = soundcloud.fetch_next_tracks(track_data[selected].url);
                 }else {//if(track_data[selected].source=="saavn"){
                     // system(("notify-send 'Tuisic' 'Fetching next'" + track_data[selected].id).c_str());
-                    next_tracks = saavn.fetch_next_tracks(track_data[selected].id);
+                    next_tracks = saavn.fetch_next_tracks(track_data[selected].id, track_data[selected].language);
                     // system(("notify-send 'Tuisic' 'Fetching next'" + next_tracks[0].id).c_str());
 
                 }

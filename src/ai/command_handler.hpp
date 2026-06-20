@@ -120,7 +120,7 @@ private:
                 if (selected_track.source == "soundcloud") {
                     next_tracks = soundcloud.fetch_next_tracks(selected_track.url);
                 } else if (selected_track.source == "saavn") {
-                    next_tracks = saavn.fetch_next_tracks(selected_track.id);
+                    next_tracks = saavn.fetch_next_tracks(selected_track.id, selected_track.language);
                 }
             } catch (const std::exception& e) {
                 // If fetching next tracks fails, just play the selected track
