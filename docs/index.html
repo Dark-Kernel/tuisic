@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>tuisic — TUI Music Streaming</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #08090b;
+      color: #c8d0c8;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-brand {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: #e4f0e4;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-brand span {
+      color: #3fb950;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: #6b7a6b;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover {
+      color: #c8d0c8;
+    }
+
+    .nav-btn {
+      background: #3fb950;
+      color: #0b120b !important;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600 !important;
+      font-size: 13px;
+      transition: background .2s, transform .15s !important;
+    }
+
+    .nav-btn:hover {
+      background: #4ecb5e;
+      color: #0b120b !important;
+      transform: translateY(-1px);
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 80px 0 64px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(ellipse, rgba(63, 185, 80, 0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(63, 185, 80, 0.08);
+      border: 1px solid rgba(63, 185, 80, 0.15);
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #3fb950;
+      margin-bottom: 24px;
+    }
+
+    .hero-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3fb950;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    .ascii-logo {
+      font-size: 14px;
+      line-height: 1.25;
+      color: #3fb950;
+      white-space: pre;
+      letter-spacing: 0.3px;
+      margin-bottom: 20px;
+      display: inline-block;
+      text-align: left;
+      opacity: 0.6;
+    }
+
+    .hero h1 {
+      font-size: 52px;
+      font-weight: 700;
+      color: #e4f0e4;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span {
+      color: #3fb950;
+    }
+
+    .hero p {
+      font-size: 17px;
+      color: #6b7a6b;
+      max-width: 580px;
+      margin: 0 auto 32px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all .2s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #3fb950;
+      color: #0b120b;
+    }
+
+    .btn-primary:hover {
+      background: #4ecb5e;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(63, 185, 80, 0.2);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.04);
+      color: #c8d0c8;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .cursor-inline {
+      display: inline-block;
+      width: 7px;
+      height: 17px;
+      background: #3fb950;
+      margin-left: 3px;
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* ── Section ── */
+    section {
+      padding: 72px 0;
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #3fb950;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #e4f0e4;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .section-desc {
+      font-size: 15px;
+      color: #6b7a6b;
+      max-width: 520px;
+      margin-bottom: 36px;
+    }
+
+    /* ── Features Grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 22px 20px;
+      transition: background .2s, border-color .2s, transform .15s;
+    }
+
+    .feature-card:hover {
+      background: rgba(255, 255, 255, 0.035);
+      border-color: rgba(63, 185, 80, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #3fb950;
+      margin-bottom: 8px;
+    }
+
+    .feature-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e4f0e4;
+      margin-bottom: 4px;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: #6b7a6b;
+      line-height: 1.5;
+    }
+
+    /* ── Graph / Stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 48px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: #e4f0e4;
+    }
+
+    .stat-value span {
+      color: #3fb950;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #6b7a6b;
+      margin-top: 2px;
+    }
+
+    /* ── Sources ── */
+    .sources-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .source-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #8a9a8a;
+      transition: all .2s;
+    }
+
+    .source-tag:hover {
+      border-color: rgba(63, 185, 80, 0.2);
+      color: #c8d0c8;
+    }
+
+    .source-tag.active {
+      border-color: rgba(63, 185, 80, 0.2);
+      color: #3fb950;
+    }
+
+    /* ── Shortcuts ── */
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px 16px;
+    }
+
+    .shortcut-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      transition: background .15s;
+    }
+
+    .shortcut-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .shortcut-key {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #c8d0c8;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .shortcut-label {
+      color: #6b7a6b;
+    }
+
+    /* ── Terminal Window ── */
+    .terminal-window {
+      background: #0e110e;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.r { background: #ff5f56; }
+    .terminal-dot.y { background: #ffbd2e; }
+    .terminal-dot.g { background: #27c93f; }
+
+    .terminal-bar-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #4a5a4a;
+      margin-left: auto;
+    }
+
+    .terminal-body {
+      padding: 16px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #b0c0b0;
+      overflow-x: auto;
+    }
+
+    .terminal-body .prompt {
+      color: #3a5a3a;
+    }
+
+    .terminal-body .cmd {
+      color: #d8e8d8;
+    }
+
+    .terminal-body .comment {
+      color: #4a6a4a;
+      font-style: italic;
+    }
+
+    .terminal-body .highlight {
+      color: #3fb950;
+    }
+    .terminal-body .jsk { color: #7ec8e3; }
+    .terminal-body .jsv { color: #d4a86a; }
+    .terminal-body .jst { color: #c8d8c8; }
+
+    /* ── Install Tabs ── */
+    .install-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .install-tab {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 8px 18px;
+      background: none;
+      border: none;
+      color: #5a6a5a;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .2s;
+    }
+
+    .install-tab:hover {
+      color: #8a9a8a;
+    }
+
+    .install-tab.active {
+      color: #3fb950;
+      border-bottom-color: #3fb950;
+    }
+
+    .install-panel {
+      display: none;
+    }
+
+    .install-panel.active {
+      display: block;
+    }
+
+    .code-block {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.9;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      color: #c8d8c8;
+    }
+
+    .line { display: block; }
+    .gp { color: #3a5a3a; user-select: none; }
+    .c  { color: #4a6a4a; font-style: italic; }
+    .cm { color: #dce8dc; }
+    .hl { color: #3fb950; }
+
+    /* ── MCP ── */
+    .mcp-section {
+      background: rgba(63, 185, 80, 0.03);
+      border: 1px solid rgba(63, 185, 80, 0.08);
+      border-radius: 10px;
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .mcp-content h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #e4f0e4;
+      margin-bottom: 8px;
+    }
+
+    .mcp-content p {
+      font-size: 13px;
+      color: #6b7a6b;
+      line-height: 1.6;
+    }
+
+    .mcp-content ul {
+      list-style: none;
+      margin-top: 16px;
+    }
+
+    .mcp-content ul li {
+      font-size: 13px;
+      color: #8a9a8a;
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .mcp-content ul li::before {
+      content: '>';
+      position: absolute;
+      left: 0;
+      color: #3fb950;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 28px 0 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    footer .brand {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #4a5a4a;
+    }
+
+    footer .brand span {
+      color: #3fb950;
+    }
+
+    footer .links {
+      display: flex;
+      gap: 20px;
+    }
+
+    footer .links a {
+      color: #4a5a4a;
+      text-decoration: none;
+      font-size: 13px;
+      transition: color .2s;
+    }
+
+    footer .links a:hover {
+      color: #8a9a8a;
+    }
+
+    footer .copy {
+      font-size: 12px;
+      color: #3a4a3a;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 34px; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .shortcuts-grid { grid-template-columns: repeat(2, 1fr); }
+      .install-grid { grid-template-columns: 1fr; }
+      .mcp-section { grid-template-columns: 1fr; }
+      nav .nav-links a:not(.nav-btn) { display: none; }
+      .ascii-logo { font-size: 11px; }
+    }
+
+    @media (max-width: 480px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .shortcuts-grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 28px; }
+      section { padding: 48px 0; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="container">
+  <div class="nav-brand">tuisic<span>.</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="#sources">Sources</a>
+    <a href="https://github.com/Dark-Kernel/tuisic">GitHub</a>
+    <a href="https://github.com/Dark-Kernel/tuisic/releases" class="nav-btn">Download</a>
+  </div>
+</nav>
+
+<div class="container">
+  <section class="hero">
+    <div class="ascii-logo"> ┌───────┐ ┌───┐ ┌─┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐
+═╘═╕∙ ·╒═╛═│∙  │═│∙│═╘═╕∙  ╒═╛═│∙╒═════╛═╘═╕∙  ╒═╛═│∙  ╒═╕∙│
+░░▒│   │▒░░│   │█│ │ ▓▓│   │░▓▓│ └─────┐ ▓▓│   │░▓ │   │▓└─┘
+░░▒│   │▒░▒│   │▓│ │░░░│   │▓██╘═══╕  ∙│░░░│   │▓█░│   │░┌─┐
+░░▒│   │▒░▓│   └─┘ │▒▒▒│   │░▒▓┌───┘   │▒▒▒│   │░▒▒│   │░│ │
+═══│∙ ·│═══│∙     ∙│═┌─┘∙  └─┐═│∙     ∙│═┌─┘∙  └─┐═│∙  ╘═╛∙│
+   ╘═══╛   ╘═══════╛ ╘═══════╛ ╘═══════╛ ╘═══════╛ ╘═══════╛</div>
+    <h1>Music streaming<br>from your <span>terminal</span>.</h1>
+    <div class="hero-badge" style="margin-bottom:28px; margin-top:6px;">
+      <span class="hero-badge-dot"></span>
+      v1.0.0 &middot; MCP ready
+    </div>
+    <p>Search, play, and download songs from multiple sources — no browser, no ads, no distractions. Just your music and your shell.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/Dark-Kernel/tuisic/releases" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </a>
+      <a href="#install" class="btn btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Install
+      </a>
+      <span style="font-size: 13px; color: #4a5a4a;">
+        $ tuisic --mcp-server<span class="cursor-inline"></span>
+      </span>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value"><span>6</span></div>
+      <div class="stat-label">Music sources</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><span>12</span></div>
+      <div class="stat-label">Features</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">C<span>++</span></div>
+      <div class="stat-label">Built with</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">MCP</div>
+      <div class="stat-label">AI integration</div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="section-label">/ features</div>
+    <h2 class="section-title">Everything you need, nothing you don't.</h2>
+    <p class="section-desc">A streamlined terminal experience built for speed, focused on what matters — the music.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>Vim motions</h3>
+        <p>Navigate your library with familiar keyboard bindings. No mouse needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>No ads</h3>
+        <p>Zero advertisements, zero tracking. Pure, uninterrupted music.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>Easy downloads</h3>
+        <p>Download songs directly to your machine with a single keystroke.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>Playlists</h3>
+        <p>Create and manage playlists. Save favourites for quick access.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>Daemon mode</h3>
+        <p>Run in the background. Control playback without keeping the TUI open.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>MPRIS DBUS</h3>
+        <p>Integrates with your desktop via playerctl for system-wide media control.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>CAVA visualizer</h3>
+        <p>Real-time audio visualizer built directly into the terminal interface.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>Discord RPC</h3>
+        <p>Show what you're listening to on your Discord profile in real time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
+        <h3>Lyrics</h3>
+        <p>Fetch and display synced lyrics for whatever's playing.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sources -->
+  <section id="sources">
+    <div class="section-label">/ sources</div>
+    <h2 class="section-title">Aggregated from across the web.</h2>
+    <p class="section-desc">Pulls music from multiple platforms so you're never stuck searching for a song.</p>
+    <div class="sources-list">
+      <span class="source-tag active">JioSaavn</span>
+      <span class="source-tag active">SoundCloud</span>
+      <span class="source-tag active">LastFM</span>
+      <span class="source-tag active">ForestFM</span>
+      <span class="source-tag active">YouTube</span>
+      <span class="source-tag">YouTube Music</span>
+    </div>
+  </section>
+
+  <!-- Shortcuts -->
+  <section>
+    <div class="section-label">/ shortcuts</div>
+    <h2 class="section-title">Keyboard-first by design.</h2>
+    <p class="section-desc">Every action has a binding. Stay in the flow without lifting your hands.</p>
+    <div class="shortcuts-grid">
+      <div class="shortcut-row"><span class="shortcut-key">q</span><span class="shortcut-label">Quit</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">w</span><span class="shortcut-label">Toggle daemon</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">Space</span><span class="shortcut-label">Play / Pause</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">Alt+l</span><span class="shortcut-label">Copy URL</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">&gt;</span><span class="shortcut-label">Next song</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">&lt;</span><span class="shortcut-label">Previous song</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">d</span><span class="shortcut-label">Download</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">a</span><span class="shortcut-label">Add to favourites</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">.</span><span class="shortcut-label">Seek forward</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">,</span><span class="shortcut-label">Seek backward</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">m</span><span class="shortcut-label">Mute</span></div>
+      <div class="shortcut-row"><span class="shortcut-key">L</span><span class="shortcut-label">Toggle lyrics</span></div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section id="install">
+    <div class="section-label">/ install</div>
+    <h2 class="section-title">Get started in seconds.</h2>
+    <p class="section-desc">Available on every major platform. Choose your OS below.</p>
+    <div class="code-block" style="margin-bottom: 20px;">
+<span class="line"><span class="c"># Quick install (Linux / macOS / WSL)</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">curl -fsSL https://raw.githubusercontent.com/Dark-Kernel/tuisic/master/install.sh <span class="hl">|</span> sh</span></span>
+    </div>
+    <div class="install-tabs">
+      <button class="install-tab active" data-tab="linux">Linux</button>
+      <button class="install-tab" data-tab="macos">macOS</button>
+      <button class="install-tab" data-tab="windows">Windows WSL</button>
+    </div>
+    <div id="panel-linux" class="install-panel active">
+      <div class="code-block">
+<span class="line"><span class="c"># AUR (Arch Linux) — recommended</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">yay -S tuisic-git</span></span>
+<span class="line"> </span>
+<span class="line"><span class="c"># Debian / Ubuntu</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">sudo apt-get install build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev rapidjson-dev libpulse-dev</span></span>
+<span class="line"> </span>
+<span class="line"><span class="c"># Build from source</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">git clone https://github.com/Dark-Kernel/tuisic.git</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">cd tuisic</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">mkdir build && cd build</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">cmake .. -DCMAKE_BUILD_TYPE=<span class="hl">Release</span></span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">make -j$(nproc)</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">sudo make install</span></span>
+      </div>
+    </div>
+    <div id="panel-macos" class="install-panel">
+      <div class="code-block">
+<span class="line"><span class="c"># Install dependencies</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">brew install cmake pkg-config fftw mpv curl fmt rapidjson</span></span>
+<span class="line"> </span>
+<span class="line"><span class="c"># Build from source</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">git clone https://github.com/Dark-Kernel/tuisic.git</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">cd tuisic</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">mkdir build && cd build</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig"</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">cmake .. -DCMAKE_BUILD_TYPE=<span class="hl">Release</span> <span class="hl">-DWITH_MPRIS=OFF</span></span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">make -j$(sysctl -n hw.ncpu)</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">sudo make install</span></span>
+      </div>
+    </div>
+    <div id="panel-windows" class="install-panel">
+      <div class="code-block">
+<span class="line"><span class="c"># Install WSL (Ubuntu) then run:</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">sudo apt-get update</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">sudo apt-get install build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev rapidjson-dev libpulse-dev</span></span>
+<span class="line"> </span>
+<span class="line"><span class="c"># Build from source</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">git clone https://github.com/Dark-Kernel/tuisic.git</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">cd tuisic</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">mkdir build && cd build</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">cmake .. -DCMAKE_BUILD_TYPE=<span class="hl">Release</span> <span class="hl">-DWITH_MPRIS=OFF</span></span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">make -j$(nproc)</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">sudo make install</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MCP -->
+  <section>
+    <div class="section-label">/ mcp</div>
+    <div class="mcp-section">
+      <div class="mcp-content">
+        <h3>AI-native integration</h3>
+        <p>tuisic ships with a built-in MCP (Model Context Protocol) server. AI assistants can control playback, search songs, and manage your queue through natural language.</p>
+        <ul>
+          <li>Search and play songs via chat</li>
+          <li>Control playback hands-free</li>
+          <li>Manage playlists and queue</li>
+          <li>Works with any MCP-compatible client</li>
+        </ul>
+      </div>
+      <div class="terminal-window" style="margin: 0;">
+        <div class="terminal-bar">
+          <span class="terminal-dot r"></span>
+          <span class="terminal-dot y"></span>
+          <span class="terminal-dot g"></span>
+          <span class="terminal-bar-label">opencode.json</span>
+        </div>
+        <pre class="terminal-body" style="font-size: 13px; line-height: 1.6; background: transparent; margin:0; border:none;">{
+  <span class="jsk">"tuisic"</span>: {
+    <span class="jsk">"type"</span>: <span class="jsv">"local"</span>,
+    <span class="jsk">"command"</span>: [
+      <span class="jsv">"/path/to/tuisic"</span>,
+      <span class="highlight">"--mcp-server"</span>
+    ],
+    <span class="jsk">"enabled"</span>: <span class="jst">true</span>
+  }
+}
+</pre>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer class="container">
+  <div class="brand">tuisic<span>.</span></div>
+  <div class="links">
+    <a href="https://github.com/Dark-Kernel/tuisic">GitHub</a>
+    <a href="https://github.com/Dark-Kernel/tuisic/releases">Releases</a>
+    <a href="https://aur.archlinux.org/packages/tuisic-git">AUR</a>
+    <a href="https://github.com/Dark-Kernel/tuisic/blob/main/CONTRIBUTING.md">Contribute</a>
+  </div>
+  <div class="copy">&copy; 2025 Dark-Kernel</div>
+</footer>
+
+<script>
+  document.querySelectorAll('.install-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.install-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
