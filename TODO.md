@@ -10,3 +10,5 @@
 - [X] Expose to MPRIS dbus
 - [X] Discord Rich Presence
 - [ ] Customizable Ascii Art in place of visualizer
+- [ ] Customizable theme
+- [X] AppImage

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>tuisic — TUI Music Streaming</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -500,6 +501,38 @@
       color: #c8d8c8;
     }
 
+    .code-block-wrap {
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #6b7a6b;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all .2s;
+      z-index: 1;
+    }
+
+    .copy-btn:hover {
+      background: rgba(63, 185, 80, 0.15);
+      border-color: rgba(63, 185, 80, 0.3);
+      color: #3fb950;
+    }
+
+    .copy-btn.copied {
+      background: rgba(63, 185, 80, 0.2);
+      border-color: #3fb950;
+      color: #3fb950;
+    }
+
     .line { display: block; }
     .gp { color: #3a5a3a; user-select: none; }
     .c  { color: #4a6a4a; font-style: italic; }
@@ -773,9 +806,12 @@
     <div class="section-label">/ install</div>
     <h2 class="section-title">Get started in seconds.</h2>
     <p class="section-desc">Available on every major platform. Choose your OS below.</p>
-    <div class="code-block" style="margin-bottom: 20px;">
+    <div class="code-block-wrap" style="margin-bottom: 20px;">
+      <div class="code-block">
 <span class="line"><span class="c"># Quick install (Linux / macOS / WSL)</span></span>
-<span class="line"><span class="gp">$</span> <span class="cm">curl -fsSL https://raw.githubusercontent.com/Dark-Kernel/tuisic/master/install.sh <span class="hl">|</span> sh</span></span>
+<span class="line" id="quick-install-cmd"><span class="gp">$</span> <span class="cm">curl -fsSL https://raw.githubusercontent.com/Dark-Kernel/tuisic/master/install.sh <span class="hl">|</span> sh</span></span>
+      </div>
+      <button class="copy-btn" onclick="copyCmd()">copy</button>
     </div>
     <div class="install-tabs">
       <button class="install-tab active" data-tab="linux">Linux</button>
@@ -784,12 +820,16 @@
     </div>
     <div id="panel-linux" class="install-panel active">
       <div class="code-block">
+<span class="line"><span class="c"># AppImage — portable, no deps needed</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm">curl -fsSL https://github.com/Dark-Kernel/tuisic/releases/latest/download/tuisic-linux-x64.AppImage <span class="hl">-o</span> tuisic</span></span>
+<span class="line"><span class="gp">$</span> <span class="cm"><span class="hl">chmod +x</span> tuisic && ./tuisic</span></span>
+<span class="line"> </span><br>
 <span class="line"><span class="c"># AUR (Arch Linux) — recommended</span></span>
 <span class="line"><span class="gp">$</span> <span class="cm">yay -S tuisic-git</span></span>
-<span class="line"> </span>
-<span class="line"><span class="c"># Debian / Ubuntu</span></span>
+<span class="line"> </span><br>
+<span class="line"><span class="c"># Debian / Ubuntu — build deps</span></span>
 <span class="line"><span class="gp">$</span> <span class="cm">sudo apt-get install build-essential cmake pkg-config libfftw3-dev libmpv-dev libcurl4-openssl-dev libfmt-dev libsystemd-dev rapidjson-dev libpulse-dev</span></span>
-<span class="line"> </span>
+<span class="line"> </span><br>
 <span class="line"><span class="c"># Build from source</span></span>
 <span class="line"><span class="gp">$</span> <span class="cm">git clone https://github.com/Dark-Kernel/tuisic.git</span></span>
 <span class="line"><span class="gp">$</span> <span class="cm">cd tuisic</span></span>
@@ -888,6 +928,28 @@
       document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     });
   });
+
+  function copyCmd() {
+    const el = document.querySelector('#quick-install-cmd .cm');
+    const text = el ? el.textContent : '';
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {
+      // fallback: select and execCommand
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector('#quick-install-cmd'));
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+    });
+  }
 </script>
 
 </body>

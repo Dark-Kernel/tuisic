@@ -92,11 +92,87 @@ jobs:
         cd build
         cmake --build . --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 
-    - name: Upload artifact
+    - name: Create AppImage (Linux only)
+      if: matrix.target == 'linux-x64'
+      run: |
+        set -e
+        mkdir -p AppDir/usr/bin
+        cp build/tuisic AppDir/usr/bin/
+
+        mkdir -p AppDir/usr/share/applications
+        printf '%s\n' \
+          '[Desktop Entry]' \
+          'Name=Tuisic' \
+          'Exec=tuisic' \
+          'Icon=tuisic' \
+          'Type=Application' \
+          'Categories=Utility;' \
+          'Terminal=true' \
+          > AppDir/usr/share/applications/tuisic.desktop
+
+        printf '%s\n' \
+          'import struct, zlib, os' \
+          'C = (63, 185, 80)' \
+          'def png(w, h, C):' \
+          '    def ch(ct, d):' \
+          '        p = ct + d' \
+          '        return struct.pack(">I", len(d)) + p + struct.pack(">I", zlib.crc32(p) & 0xffffffff)' \
+          '    r = b""' \
+          '    for y in range(h):' \
+          '        r += b"\x00" + bytes(C) * w' \
+          '    return b"\x89PNG\r\n\x1a\n" + ch(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + ch(b"IDAT", zlib.compress(r)) + ch(b"IEND", b"")' \
+          'for s in [48, 64, 128, 256, 512]:' \
+          '    d = "AppDir/usr/share/icons/hicolor/{0}x{0}/apps".format(s)' \
+          '    os.makedirs(d, exist_ok=True)' \
+          '    with open(d + "/tuisic.png", "wb") as f:' \
+          '        f.write(png(s, s, C))' \
+          > /tmp/genicons.py
+        python3 /tmp/genicons.py
+
+        cp AppDir/usr/share/icons/hicolor/256x256/apps/tuisic.png AppDir/tuisic.png
+        cp AppDir/usr/share/icons/hicolor/256x256/apps/tuisic.png AppDir/.DirIcon
+
+        # Download and extract linuxdeploy (populates AppDir with libs)
+        wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+        chmod +x linuxdeploy-x86_64.AppImage
+        ./linuxdeploy-x86_64.AppImage --appimage-extract
+        mv squashfs-root linuxdeploy-app
+
+        ./linuxdeploy-app/AppRun --appdir AppDir \
+          -d AppDir/usr/share/applications/tuisic.desktop \
+          -i AppDir/usr/share/icons/hicolor/256x256/apps/tuisic.png
+
+        # Create AppRun entrypoint
+        cat > AppDir/AppRun << 'EOF'
+        #!/bin/bash
+        HERE="$(dirname "$(readlink -f "$0")")"
+        exec "$HERE/usr/bin/tuisic" "$@"
+        EOF
+        chmod +x AppDir/AppRun
+
+        # Download appimagetool and create the AppImage
+        wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+        chmod +x appimagetool-x86_64.AppImage
+        ./appimagetool-x86_64.AppImage --appimage-extract
+        mv squashfs-root appimagetool-app
+
+        ARCH=x86_64 VERSION=1.0.0 ./appimagetool-app/AppRun \
+          AppDir tuisic-linux-x64.AppImage
+
+        ls -lh tuisic-linux-x64.AppImage
+
+    - name: Upload binary artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
         path: build/${{ matrix.artifact_name }}
+
+    - name: Upload AppImage artifact (Linux only)
+      if: matrix.target == 'linux-x64'
+      uses: actions/upload-artifact@v4
+      with:
+        name: tuisic-linux-x64.AppImage
+        path: tuisic-linux-x64.AppImage
 
   release:
     needs: build
@@ -114,14 +190,15 @@ jobs:
 
     - name: Prepare release assets
       run: |
-        # Rename artifacts to have unique names with platform identifiers
         mkdir -p release-assets
         mv artifacts/tuisic-linux-x64/tuisic release-assets/tuisic-linux-x64
         mv artifacts/tuisic-macos-x64/tuisic release-assets/tuisic-macos-x64
         mv artifacts/tuisic-macos-arm64/tuisic release-assets/tuisic-macos-arm64
-        # Make all binaries executable
+        # Move AppImage if present
+        if [ -f artifacts/tuisic-linux-x64.AppImage/tuisic-linux-x64.AppImage ]; then
+          mv artifacts/tuisic-linux-x64.AppImage/tuisic-linux-x64.AppImage release-assets/tuisic-linux-x64.AppImage
+        fi
         chmod +x release-assets/*
-        # List files for debugging
         ls -lh release-assets/
 
     - name: Generate changelog
@@ -154,11 +231,12 @@ jobs:
 
           ## Downloads
           Download the appropriate binary for your platform:
-          - **Linux (x64)**: tuisic-linux-x64
+          - **Linux (x64)**: tuisic-linux-x64 *(dynamic)* or **tuisic-linux-x64.AppImage** *(portable)*
           - **macOS (Intel)**: tuisic-macos-x64
           - **macOS (Apple Silicon)**: tuisic-macos-arm64
         files: |
           release-assets/tuisic-linux-x64
+          release-assets/tuisic-linux-x64.AppImage
           release-assets/tuisic-macos-x64
           release-assets/tuisic-macos-arm64
         draft: false
