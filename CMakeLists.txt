@@ -38,6 +38,11 @@ if (WITH_MPRIS AND UNIX AND NOT APPLE AND NOT WIN32)
   find_package(sdbus-c++ REQUIRED)
   target_link_libraries(tuisic PRIVATE SDBusCpp::sdbus-c++)
   target_compile_definitions(tuisic PRIVATE -DWITH_MPRIS)
+  set_property(TARGET tuisic PROPERTY CXX_STANDARD 20)
+  set_property(TARGET tuisic PROPERTY CXX_STANDARD_REQUIRED ON)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(tuisic PRIVATE -fcoroutines)
+  endif()
 endif()
 
 # ─── Discord RPC ────────────────────────────────────────────────────────────────
