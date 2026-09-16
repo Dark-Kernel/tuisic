@@ -26,11 +26,17 @@ First app of its kind, It let's you search and play online songs from cli hassle
 - Lyrics support (BETA)
 - Local music library playback
 
-When `Local Music` is selected from the playlist menu, Tuisic scans
-`~/Music/mp4s` and `~/Music/mp3s` recursively for audio files. If neither
-directory exists, it scans `~/Music` instead. Local files are played directly
-through mpv, so online search and local playback can be switched between at
-any time.
+When `Local Music` is selected from the playlist menu, Tuisic scans the path
+configured under `local_music.path` recursively. The default is `~/Music`,
+which includes the requested `~/Music/mp4s/mp3s` layout. Local files are played
+directly through mpv, so online search and local playback can be switched
+between at any time. For example:
+
+```json
+"local_music": {
+  "path": "/home/user/Music"
+}
+```
 
 ## Shortcuts
 

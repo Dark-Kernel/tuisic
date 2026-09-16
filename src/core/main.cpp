@@ -151,8 +151,8 @@ auto searchQuery(const std::string &query) {
   return track_strings;
 }
 
-void load_local_music() {
-  track_data_local = discover_local_tracks();
+void load_local_music(const std::string &music_root) {
+  track_data_local = discover_local_tracks(music_root);
   track_data = track_data_local;
   track_data_forestfm.clear();
   next_tracks.clear();
@@ -1169,7 +1169,7 @@ int main(int argc, char *argv[]) {
             tracks.clear();
             tracks = fetch_favorites(track_data);
           } else if (selected_playlist == 3) {
-            load_local_music();
+            load_local_music(config->get_local_music_path());
             tracks = track_strings;
           } else if (selected_playlist == 4) {
             // current_source = PlaylistSource::Custom;

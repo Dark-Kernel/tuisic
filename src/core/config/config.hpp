@@ -29,6 +29,12 @@ private:
     downloads.AddMember("quality", "best", allocator);
     config.AddMember("downloads", downloads, allocator);
 
+    rapidjson::Value local_music(rapidjson::kObjectType);
+    local_music.AddMember(
+        "path", rapidjson::Value(default_music_path.c_str(), allocator),
+        allocator);
+    config.AddMember("local_music", local_music, allocator);
+
     /* // Downloads section */
     /* rapidjson::Value downloads(rapidjson::kObjectType); */
     /* downloads.AddMember("path", rapidjson::Value((std::string(getenv("HOME"))
@@ -193,6 +199,10 @@ public:
 
   std::string get_download_format() const {
     return get_string_value("downloads", "format", "mp3");
+  }
+
+  std::string get_local_music_path() const {
+    return get_string_value("local_music", "path", paths::get_music_dir());
   }
 
   bool get_subtitle_enabled() const {
