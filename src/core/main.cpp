@@ -2,6 +2,7 @@
 #include "../services/justmusic/justmusic.cpp"
 #include "../services/lastfm/lastfm.cpp"
 #include "../storage/localStorage.cpp"
+#include "../storage/local_music.cpp"
 #include "../audio/player.cpp"
 #include "../storage/playlist_handler.cpp"
 #include "../services/saavn/saavn.cpp"
@@ -53,6 +54,7 @@ std::vector<Track> track_data_saavn;
 std::vector<Track> track_data_lastfm;
 std::vector<Track> track_data_soundcloud;
 std::vector<Track> track_data_forestfm;
+std::vector<Track> track_data_local;
 std::vector<Track> next_tracks;
 std::vector<Track> recently_played;
 std::vector<Track> trending_tracks;
@@ -77,7 +79,7 @@ Justmusic justmusic;
 auto player = std::make_shared<MusicPlayer>();
 
 // Playlist source
-enum class PlaylistSource { None, Search, ForestFM, ClassicFM };
+enum class PlaylistSource { None, Search, Local, ForestFM, ClassicFM };
 PlaylistSource current_source = PlaylistSource::None;
 
 // Screen
@@ -126,6 +128,7 @@ std::vector<std::string> get_track_ascii_art(const Track &track) {
 }
 
 auto searchQuery(const std::string &query) {
+  current_source = PlaylistSource::Search;
   track_data_saavn = saavn.fetch_tracks(query);
   track_data = track_data_saavn;
   track_data_lastfm = lastfm.fetch_tracks(query);
@@ -146,6 +149,24 @@ auto searchQuery(const std::string &query) {
   }
   home_track_strings = track_strings;
   return track_strings;
+}
+
+void load_local_music() {
+  track_data_local = discover_local_tracks();
+  track_data = track_data_local;
+  track_data_forestfm.clear();
+  next_tracks.clear();
+  track_strings.clear();
+  for (const auto &track : track_data) {
+    track_strings.push_back(track.to_string());
+  }
+  selected = 0;
+  current_track_index = 0;
+  current_source = PlaylistSource::Local;
+  current_track = track_data.empty() ? "No local music found" : "Local Music";
+  current_artist = track_data.empty()
+                       ? "Add audio files to ~/Music/mp4s or ~/Music/mp3s"
+                       : std::to_string(track_data.size()) + " local tracks";
 }
 
 auto fetch_recent() {
@@ -733,7 +754,9 @@ int main(int argc, char *argv[]) {
         if (event == Event::Return) {
           // std::cerr << "Selected: " << selected << std::endl;
           if (selected >= 0 && selected < track_data.size()) {
-            current_source = PlaylistSource::Search;
+            current_source = track_data[selected].source == "local"
+                                 ? PlaylistSource::Local
+                                 : PlaylistSource::Search;
             if (!track_data_forestfm.empty()) {
               player->stop();
             }
@@ -1005,9 +1028,12 @@ int main(int argc, char *argv[]) {
             player->play(track_data_forestfm[current_track_index].url);
             button_text = "Pause";
           }
-        } else if (current_source == PlaylistSource::Search) {
+        } else if (current_source == PlaylistSource::Search ||
+                   current_source == PlaylistSource::Local) {
           if (selected >= 0 && selected < track_data.size()) {
-            current_source = PlaylistSource::Search;
+            current_source = track_data[selected].source == "local"
+                                 ? PlaylistSource::Local
+                                 : PlaylistSource::Search;
             // Stop any ongoing ForestFM playback
             if (!track_data_forestfm.empty()) {
               player->stop();
@@ -1019,7 +1045,9 @@ int main(int argc, char *argv[]) {
           }
         } else {
           if (selected >= 0 && selected < track_data.size()) {
-            current_source = PlaylistSource::Search;
+            current_source = track_data[selected].source == "local"
+                                 ? PlaylistSource::Local
+                                 : PlaylistSource::Search;
             player->play(track_data[selected].url);
             current_track = track_data[selected].name;
             current_artist = track_data[selected].artist;
@@ -1113,7 +1141,8 @@ int main(int argc, char *argv[]) {
                              Color::White));
 
   std::vector<std::string> playlist_items = {"Home", "Recently Played",
-                                             "Favorites", "CustomPlaylist"};
+                                             "Favorites", "Local Music",
+                                             "CustomPlaylist"};
   int selected_playlist = 0;
   auto playlist_menu =
       Menu(&playlist_items, &selected_playlist) | CatchEvent([&](Event event) {
@@ -1140,6 +1169,9 @@ int main(int argc, char *argv[]) {
             tracks.clear();
             tracks = fetch_favorites(track_data);
           } else if (selected_playlist == 3) {
+            load_local_music();
+            tracks = track_strings;
+          } else if (selected_playlist == 4) {
             // current_source = PlaylistSource::Custom;
             current_track = "Custom Playlist";
           }
@@ -1212,6 +1244,13 @@ int main(int argc, char *argv[]) {
       current_track = track_data_forestfm[current_track_index].name;
       current_artist = track_data_forestfm[current_track_index].artist;
       button_text = "Pause";
+    } else if (current_source == PlaylistSource::Local &&
+               !track_data.empty()) {
+      selected = (selected - 1 + track_data.size()) % track_data.size();
+      player->play(track_data[selected]);
+      current_track = track_data[selected].name;
+      current_artist = track_data[selected].artist;
+      button_text = "Pause";
     } else if (current_source == PlaylistSource::Search &&
                !track_data.empty()) {
       player->previous_track(track_data, selected);
@@ -1247,6 +1286,13 @@ int main(int argc, char *argv[]) {
       current_track = track_data_forestfm[current_track_index].name;
       current_artist = track_data_forestfm[current_track_index].artist;
       button_text = "Pause";
+    } else if (current_source == PlaylistSource::Local &&
+               !track_data.empty()) {
+      selected = (selected + 1) % track_data.size();
+      player->play(track_data[selected]);
+      current_track = track_data[selected].name;
+      current_artist = track_data[selected].artist;
+      button_text = "Pause";
     } else if (current_source == PlaylistSource::Search &&
                !track_data.empty()) {
       player->next_track(track_data, selected);
@@ -1281,6 +1327,12 @@ int main(int argc, char *argv[]) {
       current_track = next_tracks[current_track_index].name;
       current_artist = next_tracks[current_track_index].artist;
       player->next_track(next_tracks, current_track_index);
+    } else if (current_source == PlaylistSource::Local &&
+               !track_data.empty()) {
+      selected = (selected + 1) % track_data.size();
+      current_track = track_data[selected].name;
+      current_artist = track_data[selected].artist;
+      player->play(track_data[selected]);
     } else if (!track_data_forestfm.empty()) {
       current_track_index =
           (current_track_index + 1) % track_data_forestfm.size();
@@ -1369,7 +1421,8 @@ int main(int argc, char *argv[]) {
           // Handle global keyboard shortcuts when search is not focused
           if (event == Event::Character(' ')) {
             // Space for play/pause
-            if (current_source == PlaylistSource::Search &&
+            if ((current_source == PlaylistSource::Search ||
+                 current_source == PlaylistSource::Local) &&
                 !track_data.empty()) {
               if (player->is_playing_state()) {
                 player->pause();
@@ -1419,6 +1472,12 @@ int main(int argc, char *argv[]) {
               current_track = next_tracks[current_track_index].name;
               current_artist = next_tracks[current_track_index].artist;
               player->next_track(next_tracks, current_track_index);
+            } else if (current_source == PlaylistSource::Local &&
+                       !track_data.empty()) {
+              selected = (selected + 1) % track_data.size();
+              current_track = track_data[selected].name;
+              current_artist = track_data[selected].artist;
+              player->play(track_data[selected]);
             } else if (!track_data_forestfm.empty()) {
               current_track_index =
                   (current_track_index + 1) % track_data_forestfm.size();
@@ -1447,8 +1506,14 @@ int main(int argc, char *argv[]) {
                   (current_track_index - 1) % track_data_forestfm.size();
               current_track = track_data_forestfm[current_track_index].name;
               current_artist = track_data_forestfm[current_track_index].artist;
+            } else if (current_source == PlaylistSource::Local &&
+                       !track_data.empty()) {
+              selected = (selected - 1 + track_data.size()) % track_data.size();
+              current_track = track_data[selected].name;
+              current_artist = track_data[selected].artist;
+              player->play(track_data[selected]);
             } else if (!track_data.empty()) {
-              selected = (selected - 1) % track_data.size();
+              selected = (selected - 1 + track_data.size()) % track_data.size();
               current_track = track_data[selected].name;
               current_artist = track_data[selected].artist;
             }
@@ -1636,9 +1701,9 @@ int main(int argc, char *argv[]) {
                   text("m:Mute ") | dim,
               }) | center,
               text(fmt::format(" {} Tracks ",
-                               current_source == PlaylistSource::Search
-                                   ? track_data.size()
-                                   : track_data_forestfm.size())) |
+                               current_source == PlaylistSource::ForestFM
+                                   ? track_data_forestfm.size()
+                                   : track_data.size())) |
                   dim}),
     });
   });
