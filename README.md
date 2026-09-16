@@ -24,6 +24,19 @@ First app of its kind, It let's you search and play online songs from cli hassle
 - Support for AI Integration via [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (BETA)
 - Support for [Discord Rich Presence](https://discord.com/developers/docs/topics/gateway#activity-object)
 - Lyrics support (BETA)
+- Local music library playback
+
+When `Local Music` is selected from the playlist menu, Tuisic scans the path
+configured under `local_music.path` recursively. The default is `~/Music`,
+which includes the requested `~/Music/mp4s/mp3s` layout. Local files are played
+directly through mpv, so online search and local playback can be switched
+between at any time. For example:
+
+```json
+"local_music": {
+  "path": "/home/user/Music"
+}
+```
 
 ## Shortcuts
 
