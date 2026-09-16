@@ -656,6 +656,7 @@
     <a href="#features">Features</a>
     <a href="#install">Install</a>
     <a href="#sources">Sources</a>
+    <a href="#config">Config</a>
     <a href="https://github.com/Dark-Kernel/tuisic">GitHub</a>
     <a href="https://github.com/Dark-Kernel/tuisic/releases" class="nav-btn">Download</a>
   </div>
@@ -675,7 +676,7 @@
       <span class="hero-badge-dot"></span>
       v1.0.0 &middot; MCP ready
     </div>
-    <p>Search, play, and download songs from multiple sources — no browser, no ads, no distractions. Just your music and your shell.</p>
+    <p>Search, play, and download songs from multiple sources, or play your local library — no browser, no ads, no distractions.</p>
     <div class="hero-actions">
       <a href="https://github.com/Dark-Kernel/tuisic/releases" class="btn btn-primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -734,6 +735,11 @@
       </div>
       <div class="feature-card">
         <div class="feature-icon">></div>
+        <h3>Local library</h3>
+        <p>Play local audio files alongside online music, with a configurable library path.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">></div>
         <h3>Playlists</h3>
         <p>Create and manage playlists. Save favourites for quick access.</p>
       </div>
@@ -777,6 +783,24 @@
       <span class="source-tag active">ForestFM</span>
       <span class="source-tag active">YouTube</span>
       <span class="source-tag">YouTube Music</span>
+      <span class="source-tag active">Local files</span>
+    </div>
+  </section>
+
+  <!-- Configuration -->
+  <section id="config">
+    <div class="section-label">/ config</div>
+    <h2 class="section-title">Use your own music directory.</h2>
+    <p class="section-desc">Select <strong>Local Music</strong> in the playlist menu to scan your configured directory recursively. The default is <code>~/Music</code>, so nested layouts such as <code>~/Music/mp4s/mp3s</code> work automatically.</p>
+    <div class="code-block-wrap">
+      <div class="code-block">
+<span class="line"><span class="cm"># ~/.config/tuisic/config.json</span></span>
+<span class="line"><span class="p">{</span></span>
+<span class="line">  <span class="s2">"local_music"</span><span class="p">: {</span></span>
+<span class="line">    <span class="s2">"path"</span><span class="p">: </span><span class="s2">"/home/user/Music"</span></span>
+<span class="line">  <span class="p">}</span></span>
+<span class="line"><span class="p">}</span></span>
+      </div>
     </div>
   </section>
 
