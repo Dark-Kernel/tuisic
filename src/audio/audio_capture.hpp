@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstring>
 #include <iostream>
+#include <mutex>
 
 class AudioCapture {
 private:
@@ -17,10 +18,12 @@ private:
     std::thread capture_thread;
     std::atomic<bool> should_stop{false};
     std::function<void(const std::vector<double>&)> callback;
+    std::mutex callback_mutex;
 
     static constexpr int SAMPLE_RATE = 44100;
     static constexpr int CHANNELS = 2;
-    static constexpr int BUFFER_SIZE = 2048;
+    // Smaller frames give CAVA more frequent updates and reduce visual latency.
+    static constexpr int BUFFER_SIZE = 1024;
 
 public:
     AudioCapture() = default;
@@ -30,6 +33,7 @@ public:
     }
 
     void set_callback(std::function<void(const std::vector<double>&)> cb) {
+        std::lock_guard<std::mutex> lock(callback_mutex);
         callback = std::move(cb);
     }
 
@@ -58,8 +62,6 @@ public:
         // @DEFAULT_MONITOR@ is the monitor of the default sink
         const char* source = device_name ? device_name : "@DEFAULT_MONITOR@";
 
-        std::cout << "[AudioCapture] Connecting to PulseAudio source: " << source << std::endl;
-
         // Connect to PulseAudio monitor (capture from audio output)
         pulse_connection = pa_simple_new(
             nullptr,                          // Use default server
@@ -79,15 +81,11 @@ public:
             return false;
         }
 
-        std::cout << "[AudioCapture] Successfully connected to PulseAudio!" << std::endl;
-
         // Start capture thread
         should_stop = false;
         capture_thread = std::thread([this]() {
             this->capture_loop();
         });
-
-        std::cout << "[AudioCapture] Capture thread started" << std::endl;
 
         return true;
     }
@@ -111,10 +109,6 @@ private:
         std::vector<double> double_buffer(BUFFER_SIZE * CHANNELS);
 
         int error;
-        int read_count = 0;
-
-        std::cout << "[AudioCapture] Capture loop started, waiting for audio data..." << std::endl;
-
         while (!should_stop) {
             // Read audio data from PulseAudio
             if (pa_simple_read(pulse_connection, buffer.data(),
@@ -123,25 +117,20 @@ private:
                 break;
             }
 
-            read_count++;
-            if (read_count % 100 == 0) {
-                std::cout << "[AudioCapture] Read " << read_count << " audio buffers" << std::endl;
-            }
-
             // Convert float to double and pass to callback
-            if (callback) {
+            std::function<void(const std::vector<double>&)> callback_copy;
+            {
+                std::lock_guard<std::mutex> lock(callback_mutex);
+                callback_copy = callback;
+            }
+            if (callback_copy) {
                 for (size_t i = 0; i < buffer.size(); i++) {
                     double_buffer[i] = static_cast<double>(buffer[i]);
                 }
-                callback(double_buffer);
-            } else {
-                if (read_count == 1) {
-                    std::cerr << "[AudioCapture] Warning: No callback set!" << std::endl;
-                }
+                callback_copy(double_buffer);
             }
         }
 
-        std::cout << "[AudioCapture] Capture loop stopped" << std::endl;
     }
 };
 

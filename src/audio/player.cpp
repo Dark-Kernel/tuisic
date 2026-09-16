@@ -137,14 +137,6 @@ public:
 
       // Set up audio capture callback
       audio_capture->set_callback([this](const std::vector<double>& audio_data) {
-        static int callback_count = 0;
-        callback_count++;
-
-        if (callback_count == 1) {
-          std::cout << "[Player] Audio capture callback working! Received "
-                    << audio_data.size() << " samples" << std::endl;
-        }
-
         if (visualizer && on_audio_data) {
           // Process through visualizer
           std::vector<double> viz_data;
@@ -154,18 +146,9 @@ public:
             visualization_data = viz_data;
           }
 
-          if (callback_count % 100 == 0) {
-            std::cout << "[Player] Processed " << callback_count
-                      << " buffers, viz_data size: " << viz_data.size() << std::endl;
-          }
-
           // Send to UI callback
           if (!viz_data.empty()) {
             on_audio_data(viz_data);
-          }
-        } else {
-          if (callback_count == 1) {
-            std::cerr << "[Player] Visualizer or on_audio_data callback missing!" << std::endl;
           }
         }
       });
@@ -209,6 +192,19 @@ public:
 
   // Destructor with RAII principles
   ~MusicPlayer() {
+#ifdef WITH_CAVA
+    // Stop the capture thread while the UI callback and visualizer are still
+    // alive. Otherwise a final PulseAudio buffer can call into torn-down UI
+    // state during global destruction.
+    if (audio_capture) {
+      audio_capture->set_callback({});
+      audio_capture->stop();
+    }
+    {
+      std::lock_guard<std::mutex> lock(player_mutex);
+      on_audio_data = {};
+    }
+#endif
     running = false;
     if (event_thread && event_thread->joinable()) {
       event_thread->join();
@@ -219,6 +215,17 @@ public:
       std::function<void(const std::vector<double> &)> callback) {
     on_audio_data = std::move(callback);
   }
+
+#ifdef WITH_CAVA
+  void shutdown_audio_capture() {
+    if (audio_capture) {
+      audio_capture->set_callback({});
+      audio_capture->stop();
+    }
+    std::lock_guard<std::mutex> lock(player_mutex);
+    on_audio_data = {};
+  }
+#endif
 
   // Subtitle management methods
   void update_subtitle(const char *new_subtitle) {
