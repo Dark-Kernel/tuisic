@@ -7,7 +7,9 @@
 #include "../storage/playlist_handler.cpp"
 #include "../services/saavn/saavn.cpp"
 #include "../services/soundcloud/soundcloud.cpp"
+#include <array>
 #include <cstdio>
+#include <chrono>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/urlapi.h>
@@ -231,6 +233,7 @@ void switch_playlist_source(const std::vector<Track> &new_tracks) {
 std::vector<double> visualizer_bars;
 std::vector<double> smoothed_bars(16, 0.0);  // For smooth animations
 std::mutex visualizer_mutex;
+std::atomic_bool visualizer_animation_running{false};
 
 // Fixed number of bars like CAVA
 static constexpr int NUM_BARS = 16;
@@ -243,35 +246,45 @@ ftxui::Element create_visualizer_bars() {
 
   // Create fixed number of bars
   std::vector<Element> bars;
-  const int MAX_HEIGHT = 8;  // Reduced height for better UI layout
+  const int MAX_HEIGHT = 8;  // Keep the visualizer compact in the sidebar
   const int BASE_HEIGHT = 1;  // Minimum bar height (base indicator)
+  static constexpr std::array<char const *, 8> LEVELS = {
+      "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
 
   // Always create exactly NUM_BARS bars
   for (int bar_index = 0; bar_index < NUM_BARS; bar_index++) {
     double target_height = BASE_HEIGHT;
 
     // Get height from visualizer data if available
-    if (!visualizer_bars.empty() && bar_index * 2 < visualizer_bars.size()) {
-      // Average stereo channels
-      double value = (bar_index * 2 + 1 < visualizer_bars.size())
-                      ? (visualizer_bars[bar_index * 2] + visualizer_bars[bar_index * 2 + 1]) / 2.0
-                      : visualizer_bars[bar_index * 2];
+    if (visualizer_bars.size() >= NUM_BARS * 2) {
+      // CAVA stores all left-channel bands first, then all right-channel
+      // bands; the channels are not interleaved.
+      const double value =
+          (visualizer_bars[bar_index] +
+           visualizer_bars[NUM_BARS + bar_index]) /
+          2.0;
 
       // Reduced sensitivity like CAVA's down arrow (lower multiplier)
       target_height = std::clamp(value * MAX_HEIGHT * 1.2, static_cast<double>(BASE_HEIGHT), static_cast<double>(MAX_HEIGHT));
     }
 
-    // CAVA-style smoothing with gravity effect
-    // Fast rise, slow fall (like gravity)
+    // Filter on the UI frame rather than on audio-buffer arrival. This keeps
+    // the animation stable when PulseAudio's callback cadence fluctuates.
     if (target_height > smoothed_bars[bar_index]) {
-      // Rising: respond quickly (30% of the way)
-      smoothed_bars[bar_index] = smoothed_bars[bar_index] * 0.7 + target_height * 0.3;
+      smoothed_bars[bar_index] =
+          smoothed_bars[bar_index] * 0.82 + target_height * 0.18;
     } else {
-      // Falling: respond slowly (10% of the way) - gravity effect
-      smoothed_bars[bar_index] = smoothed_bars[bar_index] * 0.9 + target_height * 0.1;
+      smoothed_bars[bar_index] =
+          smoothed_bars[bar_index] * 0.94 + target_height * 0.06;
     }
 
-    int height = std::clamp(static_cast<int>(smoothed_bars[bar_index]), BASE_HEIGHT, MAX_HEIGHT);
+    const double filtered_height =
+        std::clamp(smoothed_bars[bar_index], static_cast<double>(BASE_HEIGHT),
+                   static_cast<double>(MAX_HEIGHT));
+    const int height = static_cast<int>(filtered_height);
+    const int partial_level = std::clamp(
+        static_cast<int>((filtered_height - height) * LEVELS.size()), 0,
+        static_cast<int>(LEVELS.size()) - 1);
 
     // Create colored bar based on height
     Color bar_color;
@@ -285,25 +298,32 @@ ftxui::Element create_visualizer_bars() {
       bar_color = Color::Red;
     }
 
-    // Build vertical bar - always same structure, only height changes
-    // Use actual character width instead of size() modifier
+    // Keep the fractional top segment so small changes are visible between
+    // terminal rows instead of making the bars appear stuck or jumpy.
     std::vector<Element> bar_segments;
     for (int h = 0; h < MAX_HEIGHT; h++) {
       if (h < BASE_HEIGHT) {
-        // Base indicator (always visible) - wider with actual characters
-        bar_segments.push_back(text(" ▁▁") | color(base_color));
-      } else if (h < height) {
-        // Active part of the bar - wider with actual characters
-        bar_segments.push_back(text(" █") | color(bar_color));
+        bar_segments.push_back(text("▁") | color(base_color));
+      } else if (h < height - 1 ||
+                 (h == height - 1 &&
+                  (partial_level == LEVELS.size() - 1 || height == MAX_HEIGHT))) {
+        bar_segments.push_back(text("█") | color(bar_color));
+      } else if (h == height - 1 && height > BASE_HEIGHT) {
+        bar_segments.push_back(text(LEVELS[partial_level]) |
+                                 color(bar_color));
       } else {
-        // Empty space - same width
-        bar_segments.push_back(text("  "));
+        bar_segments.push_back(text(" "));
       }
     }
 
     // Reverse so bars grow upward
     std::reverse(bar_segments.begin(), bar_segments.end());
-    bars.push_back(vbox(std::move(bar_segments)));
+    // Use a real separator cell. Trailing spaces in text elements may be
+    // collapsed by terminal rendering and make neighboring bars touch.
+    bars.push_back(hbox({
+        vbox(std::move(bar_segments)) | size(WIDTH, EQUAL, 1),
+        text(" "),
+    }));
   }
 
   return hbox(std::move(bars)) | center;
@@ -670,6 +690,17 @@ int main(int argc, char *argv[]) {
   });
 
   std::cout << "[Main] Audio callback set up successfully" << std::endl;
+
+  // Audio callbacks arrive in chunks and are not a reliable UI clock. Drive
+  // redraws at a steady cadence so the renderer can interpolate between them.
+  visualizer_animation_running = true;
+  std::thread visualizer_animation_thread([] {
+    using namespace std::chrono_literals;
+    while (visualizer_animation_running) {
+      screen.PostEvent(ftxui::Event::Custom);
+      std::this_thread::sleep_for(16ms);
+    }
+  });
 #endif
 
   using namespace ftxui;
@@ -1633,7 +1664,7 @@ int main(int argc, char *argv[]) {
                 //     4),
                 // }) | size(HEIGHT, EQUAL, 1),
                 /////////////////////////////////////////////////////////////////
-            }) | size(WIDTH, EQUAL, 30) |
+            }) | size(WIDTH, EQUAL, 34) |
                 border,
             vbox({
                 hbox({
@@ -1709,5 +1740,21 @@ int main(int argc, char *argv[]) {
   });
 
   screen.Loop(renderer);
+#ifdef WITH_CAVA
+  visualizer_animation_running = false;
+  if (visualizer_animation_thread.joinable()) {
+    visualizer_animation_thread.join();
+  }
+  // The global player outlives main(), while this callback captures main-local
+  // UI state. Stop it before those references go out of scope.
+  player->shutdown_audio_capture();
+#endif
+#ifdef WITH_MPRIS
+  if (tui_mpris) {
+    is_mpris_active = false;
+    tui_mpris->shutdown();
+    tui_mpris.reset();
+  }
+#endif
   return 0;
 }

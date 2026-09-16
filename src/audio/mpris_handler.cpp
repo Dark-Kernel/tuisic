@@ -56,7 +56,20 @@ public:
   }
 
   void startEventLoop() {
-    std::thread([this] { connection->enterEventLoop(); }).detach();
+    if (!connection || event_thread.joinable()) {
+      return;
+    }
+    should_stop = false;
+    event_thread = std::thread([this] {
+      try {
+        connection->enterEventLoop();
+      } catch (const sdbus::Error &error) {
+        if (!should_stop) {
+          std::cerr << "[MPRIS] Event loop stopped: " << error.what()
+                    << std::endl;
+        }
+      }
+    });
     updateMetadata();
     updatePlaybackStatus();
   }
@@ -65,7 +78,11 @@ public:
     should_stop = true;
 
     if (connection) {
-      connection->leaveEventLoop();
+      try {
+        connection->leaveEventLoop();
+      } catch (const sdbus::Error &) {
+        // The event loop may already have stopped after the bus disconnected.
+      }
     }
 
     if (event_thread.joinable()) {
@@ -77,15 +94,23 @@ public:
     connection.reset();
   }
 
-      void notifyTrackChange() {
-        if (object) {
+    void notifyTrackChange() {
+        if (object && !should_stop) {
+          try {
             updateMetadata();
+          } catch (const sdbus::Error &) {
+            // The session bus can disappear while playback is being torn down.
+          }
         }
     }
     
     void notifyPlaybackChange() {
-        if (object) {
+        if (object && !should_stop) {
+          try {
             updatePlaybackStatus();
+          } catch (const sdbus::Error &) {
+            // The session bus can disappear while playback is being torn down.
+          }
         }
     }
 
@@ -371,6 +396,8 @@ public:
   }
 
   ~TUIMPRISIntegration() {
-    // Destructor handles cleanup automatically
+    mpris_handler.reset();
   }
+
+  void shutdown() { mpris_handler.reset(); }
 };

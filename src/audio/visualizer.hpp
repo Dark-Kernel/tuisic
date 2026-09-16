@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../cava/cavacore.h"
+#include <algorithm>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -43,13 +44,13 @@ public:
             return std::vector<double>(BARS * CHANNELS, 0.0);
         }
 
-        // Copy input data
-        size_t samples_to_process = std::min(audio_data.size(), input_buffer.size());
-        std::copy(audio_data.begin(), audio_data.begin() + samples_to_process, 
-                 input_buffer.begin());
+        const size_t samples_to_process = std::min(audio_data.size(), input_buffer.size());
+        std::copy_n(audio_data.begin(), samples_to_process, input_buffer.begin());
 
         // Process through cava
-        cava_execute(input_buffer.data(), samples_to_process, 
+        // CAVA keeps a rolling FFT buffer internally, so the actual number of
+        // new samples must be passed to preserve the capture timing.
+        cava_execute(input_buffer.data(), samples_to_process,
                     output_buffer.data(), plan);
 
         return output_buffer;
